@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout, Menu, Breadcrumb, Typography, Button, Tooltip } from 'antd';
 import {
   DashboardOutlined,
@@ -23,6 +23,7 @@ import {
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import type { MenuProps } from 'antd';
+import CommandPalette from '../components/CommandPalette/CommandPalette';
 
 const { Sider, Header, Content } = Layout;
 const { Text } = Typography;
@@ -86,7 +87,6 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-// Map paths to breadcrumb labels
 const pathLabels: Record<string, string> = {
   '/': 'Dashboard',
   '/users': 'Users',
@@ -106,8 +106,21 @@ const pathLabels: Record<string, string> = {
 
 export default function AppLayout({ isDark, onToggleTheme }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Cmd+K / Ctrl+K keyboard shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const breadcrumbItems = [
     { title: 'Sambmin' },
@@ -217,7 +230,12 @@ export default function AppLayout({ isDark, onToggleTheme }: AppLayoutProps) {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Tooltip title="Search (⌘K)">
-              <Button type="text" icon={<SearchOutlined />} size="small" />
+              <Button
+                type="text"
+                icon={<SearchOutlined />}
+                size="small"
+                onClick={() => setCommandPaletteOpen(true)}
+              />
             </Tooltip>
           </div>
         </Header>
@@ -227,6 +245,12 @@ export default function AppLayout({ isDark, onToggleTheme }: AppLayoutProps) {
           <Outlet />
         </Content>
       </Layout>
+
+      {/* Command Palette */}
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+      />
     </Layout>
   );
 }
