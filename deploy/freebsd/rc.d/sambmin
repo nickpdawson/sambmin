@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# PROVIDE: sambmin
+# REQUIRE: DAEMON postgresql nginx
+# KEYWORD: shutdown
+#
+# Add the following lines to /etc/rc.conf to enable sambmin:
+#
+# sambmin_enable="YES"
+# sambmin_config="/usr/local/etc/sambmin/config.yaml"  # optional
+
+. /etc/rc.subr
+
+name="sambmin"
+rcvar="${name}_enable"
+
+load_rc_config $name
+
+: ${sambmin_enable:="NO"}
+: ${sambmin_user:="www"}
+: ${sambmin_group:="www"}
+: ${sambmin_config:="/usr/local/etc/sambmin/config.yaml"}
+: ${sambmin_pidfile:="/var/run/${name}.pid"}
+: ${sambmin_logfile:="/var/log/${name}.log"}
+
+pidfile="${sambmin_pidfile}"
+command="/usr/local/bin/sambmin"
+command_args=">> ${sambmin_logfile} 2>&1 & echo \$! > ${pidfile}"
+
+start_precmd="${name}_prestart"
+stop_postcmd="${name}_poststop"
+
+sambmin_prestart()
+{
+    export SAMBMIN_CONFIG="${sambmin_config}"
+    install -o ${sambmin_user} -g ${sambmin_group} /dev/null ${pidfile}
+    install -o ${sambmin_user} -g ${sambmin_group} /dev/null ${sambmin_logfile}
+}
+
+sambmin_poststop()
+{
+    rm -f ${pidfile}
+}
+
+run_rc_command "$1"

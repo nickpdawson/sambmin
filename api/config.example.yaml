@@ -1,0 +1,45 @@
+# Sambmin Configuration
+# Copy to /usr/local/etc/sambmin/config.yaml and edit for your environment
+
+bind_addr: "127.0.0.1"
+port: 8443
+allowed_origins:
+  - "https://sambmin.dzsec.net"
+  - "http://localhost:5173"  # Vite dev server
+
+# Domain controllers — list all DCs, mark one as primary
+domain_controllers:
+  - hostname: "dc1.dzsec.net"
+    address: "10.0.0.1"
+    site: "Default-First-Site-Name"
+    port: 636  # LDAPS
+    primary: true
+  - hostname: "dc2.dzsec.net"
+    address: "10.0.0.2"
+    site: "Seattle"
+    port: 636
+
+# LDAP base DN — derived from your domain
+base_dn: "DC=dzsec,DC=net"
+
+# Kerberos configuration
+kerberos:
+  realm: "DZSEC.NET"
+  kdc: "dc1.dzsec.net"
+  keytab_path: "/usr/local/etc/sambmin/sambmin.keytab"
+  implementation: "heimdal"  # "heimdal" or "mit"
+
+# PostgreSQL — app data only (audit, sessions, config)
+database:
+  host: "localhost"
+  port: 5432
+  name: "sambmin"
+  user: "sambmin"
+  password: ""  # Use .env or environment variable SAMBMIN_DB_PASSWORD
+  ssl_mode: "disable"
+
+# Path to Python utility scripts
+scripts_path: "/usr/local/share/sambmin/scripts"
+
+# Session timeout in hours
+session_timeout_hours: 8

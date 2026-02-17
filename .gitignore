@@ -1,0 +1,49 @@
+# Go
+api/sambmin
+api/cmd/sambmin/sambmin
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Node / React
+web/node_modules/
+web/dist/
+web/.vite/
+*.tsbuildinfo
+
+# Python
+scripts/__pycache__/
+scripts/*.pyc
+scripts/.venv/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment / Secrets
+.env
+.env.local
+.env.production
+*.pem
+*.key
+!deploy/tls/*.sh
+
+# PostgreSQL dev data
+pgdata/
+
+# Build artifacts
+build/
+dist/

@@ -1,0 +1,3 @@
+# Python dependencies for Sambmin utility scripts
+# These scripts wrap samba-tool, ldbtools, and BIND9 utilities
+# Install: pip install -r requirements.txt
