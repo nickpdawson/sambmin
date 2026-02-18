@@ -1,0 +1,1504 @@
+{
+  "product": {
+    "name": "Sambmin",
+    "version": "1.0",
+    "date": "2026-02-18",
+    "license": "GPLv3",
+    "status": "Active Development \u2014 M13",
+    "author": "Nick Dawson, CTO / Head of DevOps, DZsec",
+    "description": "Web-based Samba Active Directory management tool providing full parity with Windows RSAT/ADUC through a modern, secure interface.",
+    "design_philosophy": "Calm Power"
+  },
+  "architecture": {
+    "stack": {
+      "backend": "Go (net/http, gokrb5, go-ldap, pgx)",
+      "scripts": "Python 3.11+ (samba-tool wrappers)",
+      "frontend": "React 18 + TypeScript + Vite + Ant Design 5",
+      "visualization": "D3.js + React",
+      "database": "PostgreSQL 15+",
+      "proxy": "nginx",
+      "process_mgmt": "FreeBSD rc.d / systemd",
+      "tls": "Let's Encrypt or local CA"
+    },
+    "decisions": [
+      "LDAP for reads, samba-tool for writes",
+      "Two-tier auth: service account reads, user credential writes",
+      "PostgreSQL for app data only (never AD data)",
+      "DNS backend abstraction (Samba internal vs BIND9 DLZ)",
+      "Kerberos abstraction (Heimdal vs MIT)",
+      "Multi-DC awareness with failover"
+    ],
+    "target_environment": {
+      "dc_count": "3-6",
+      "site_count": "2-4",
+      "os": [
+        "FreeBSD 14+",
+        "Linux"
+      ],
+      "samba_version": "4.15+",
+      "dns_backends": [
+        "Samba internal DNS",
+        "BIND9 DLZ"
+      ],
+      "kerberos_backends": [
+        "Heimdal",
+        "MIT"
+      ]
+    }
+  },
+  "authentication": {
+    "methods": [
+      {
+        "type": "Kerberos/SPNEGO",
+        "description": "nginx Negotiate header to Go API"
+      },
+      {
+        "type": "LDAP bind",
+        "description": "Username+password, supports sAMAccountName/UPN/DN"
+      }
+    ],
+    "session": {
+      "storage": "PostgreSQL",
+      "encryption": "AES-256-GCM",
+      "timeout": "8h",
+      "csrf": "SameSite+token"
+    },
+    "rbac": [
+      {
+        "role": "Full Admin",
+        "group": "Domain Admins, Enterprise Admins",
+        "scope": "Everything"
+      },
+      {
+        "role": "User Admin",
+        "group": "Account Operators, custom",
+        "scope": "User/group CRUD, password resets"
+      },
+      {
+        "role": "DNS Admin",
+        "group": "DnsAdmins, custom",
+        "scope": "DNS zone/record CRUD"
+      },
+      {
+        "role": "Help Desk",
+        "group": "Custom",
+        "scope": "Password reset, unlock, view all"
+      },
+      {
+        "role": "Read Only",
+        "group": "Domain Users",
+        "scope": "View everything"
+      }
+    ],
+    "self_service": [
+      "Change own password",
+      "Edit profile fields",
+      "View groups",
+      "View certs",
+      "View account status"
+    ]
+  },
+  "ui": {
+    "design_principles": [
+      "Progressive Disclosure, Not Progressive Hiding",
+      "Context Over Navigation",
+      "Destructive Actions Require Intention",
+      "The Interface Is a Search Engine (Cmd+K)",
+      "Show System Health, Not Just Objects",
+      "Respect the Terminal (show samba-tool commands)"
+    ],
+    "navigation": [
+      "Dashboard",
+      "Users",
+      "Groups",
+      "Computers",
+      "Contacts",
+      "OUs",
+      "DNS",
+      "Sites & Services",
+      "Replication",
+      "Group Policy",
+      "Kerberos & SPNs",
+      "Auth Policies",
+      "FSMO Roles",
+      "Schema",
+      "Trusts",
+      "Service Accounts",
+      "Certificates",
+      "Delegation",
+      "Audit Log",
+      "Backup & Restore",
+      "Settings"
+    ],
+    "confirmation_tiers": {
+      "type_to_confirm": [
+        "Delete OU with children",
+        "FSMO transfer/seizure",
+        "Schema modifications",
+        "Delete DNS zone",
+        "Raise functional level",
+        "Delete trust",
+        "Domain restore"
+      ],
+      "summary_confirmation": [
+        "Delete user/group/computer/contact",
+        "Disable accounts",
+        "Bulk operations",
+        "Delete GPO",
+        "Delete DNS records"
+      ],
+      "inline_undo": [
+        "Edit description/department/title/phone",
+        "Change DNS TTL",
+        "Add/remove group member",
+        "Toggle DNS static/dynamic"
+      ]
+    }
+  },
+  "features": {
+    "dashboard": {
+      "phase": 1,
+      "status": "completed",
+      "components": [
+        "DC Health Strip",
+        "Alert Banners",
+        "Quick Action Cards",
+        "Domain Metrics with Deltas",
+        "Recent Activity Timeline",
+        "Replication Topology Mini-Map"
+      ]
+    },
+    "users": {
+      "phase": 2,
+      "status": "completed",
+      "list_columns": [
+        "display name",
+        "sAMAccountName",
+        "email",
+        "department",
+        "title",
+        "status",
+        "last logon",
+        "group count"
+      ],
+      "tabs": [
+        "All",
+        "Active",
+        "Disabled",
+        "Locked Out",
+        "Recently Created",
+        "Expiring Soon"
+      ],
+      "detail_tabs": [
+        "Identity",
+        "Organization",
+        "Account",
+        "Groups",
+        "Profile",
+        "Certificates",
+        "Dial-in/RADIUS",
+        "Object (Advanced)"
+      ],
+      "actions": [
+        "Create",
+        "Edit",
+        "Rename",
+        "Delete",
+        "Reset password",
+        "Enable/Disable",
+        "Unlock",
+        "Move to OU",
+        "Set expiration",
+        "Set auth policy/silo",
+        "CSV/JSON import",
+        "CSV/JSON/LDIF export"
+      ],
+      "bulk_actions": [
+        "Enable",
+        "Disable",
+        "Delete",
+        "Move to OU",
+        "Add to Group",
+        "Set Expiration"
+      ]
+    },
+    "groups": {
+      "phase": 2,
+      "status": "completed",
+      "actions": [
+        "Create",
+        "Edit",
+        "Rename",
+        "Delete",
+        "Add/remove members",
+        "Move to OU",
+        "View stats",
+        "Nested membership graph",
+        "Effective membership resolution"
+      ]
+    },
+    "computers": {
+      "phase": 2,
+      "status": "completed",
+      "actions": [
+        "Add",
+        "Edit",
+        "Delete",
+        "Disable",
+        "Reset machine password",
+        "Move to OU",
+        "DNS cleanup"
+      ]
+    },
+    "contacts": {
+      "phase": 2,
+      "status": "planned",
+      "actions": [
+        "Add",
+        "Edit",
+        "Rename",
+        "Delete",
+        "Move to OU"
+      ]
+    },
+    "organizational_units": {
+      "phase": 2,
+      "status": "completed",
+      "views": [
+        "List",
+        "Tree"
+      ],
+      "actions": [
+        "Create",
+        "Rename",
+        "Delete (type-to-confirm if children)",
+        "Move",
+        "List objects",
+        "Drag-drop objects"
+      ]
+    },
+    "dns": {
+      "phase": 3,
+      "status": "partially_completed",
+      "server_info": {
+        "displays": [
+          "Server config (dns serverinfo)",
+          "Forwarder settings",
+          "Forwarder reachability test",
+          "Root hints"
+        ],
+        "limitations_banners": [
+          "Conditional forwarders not supported",
+          "Zone transfers not supported",
+          "Forwarder changes require smb.conf",
+          "DNSSEC not supported"
+        ]
+      },
+      "zone_management": {
+        "list_tabs": [
+          "All",
+          "Forward Lookup",
+          "Reverse Lookup",
+          "ForestDNSZones",
+          "DomainDNSZones"
+        ],
+        "zone_properties": [
+          "Full zoneinfo",
+          "Aging toggle",
+          "No-refresh interval",
+          "Refresh interval",
+          "Scavenging timeline",
+          "Dynamic update policy",
+          "SOA editor (7-field)"
+        ],
+        "zone_actions": [
+          "Create (forward/reverse with subnet helper)",
+          "Delete",
+          "Configure aging (zoneoptions)",
+          "Bulk mark static by date/regex with dry-run"
+        ]
+      },
+      "record_management": {
+        "type_tabs": [
+          "All",
+          "A/AAAA",
+          "CNAME",
+          "MX",
+          "SRV",
+          "TXT",
+          "NS",
+          "PTR",
+          "SOA"
+        ],
+        "columns": [
+          "Name",
+          "Type",
+          "Data",
+          "TTL",
+          "Static/Dynamic",
+          "Timestamp",
+          "Age"
+        ],
+        "actions": [
+          "Create (type-adaptive form)",
+          "Update",
+          "Delete",
+          "Toggle static/dynamic",
+          "Inline editing",
+          "Bulk delete",
+          "Bulk TTL change",
+          "Bulk PTR from A",
+          "Find-and-replace",
+          "Zone export (BIND format)",
+          "Import CSV"
+        ]
+      },
+      "query_tool": {
+        "features": [
+          "DC selector",
+          "Name+type input",
+          "Cross-DC comparison",
+          "RPC vs dig comparison"
+        ]
+      },
+      "diagnostics": [
+        "AD SRV record validator (per-site, per-DC matrix)",
+        "Cross-DC DNS consistency checker",
+        "Stale record analysis and cleanup",
+        "Orphaned PTR detection",
+        "Missing reverse PTR for A records",
+        "TTL inconsistency detection",
+        "SOA serial comparison across DCs",
+        "DNS resolution test from each DC",
+        "Forwarder reachability test",
+        "DNS change metadata (whenChanged, uSNChanged)"
+      ]
+    },
+    "sites_and_services": {
+      "phase": 4,
+      "status": "planned",
+      "site_actions": [
+        "List",
+        "Create",
+        "Remove",
+        "View detail"
+      ],
+      "subnet_actions": [
+        "List per site",
+        "Create",
+        "Remove",
+        "Change site",
+        "View details"
+      ],
+      "visualization": "D3.js site topology with weighted links"
+    },
+    "replication": {
+      "phase": 4,
+      "status": "planned",
+      "components": [
+        "D3.js topology",
+        "Per-partnership status table",
+        "Uptodateness matrix",
+        "LDAP compare tool",
+        "Force sync/KCC trigger/NTDS options"
+      ]
+    },
+    "gpo": {
+      "phase": 5,
+      "status": "planned",
+      "actions": [
+        "List",
+        "Create",
+        "Delete",
+        "Link/unlink",
+        "Get/set inheritance",
+        "Fetch/download",
+        "List for user/computer"
+      ],
+      "vgp_extensions": [
+        "Sudoers",
+        "OpenSSH",
+        "Startup scripts",
+        "Symlinks",
+        "Files",
+        "MOTD",
+        "Issue banner",
+        "Host access control"
+      ]
+    },
+    "kerberos_and_spns": {
+      "phase": 5,
+      "status": "planned",
+      "spn_actions": [
+        "List",
+        "Add (duplicate detection)",
+        "Delete",
+        "Search by pattern"
+      ],
+      "keytab_actions": [
+        "Generate",
+        "Download",
+        "Domain export"
+      ],
+      "delegation_actions": [
+        "View",
+        "Add/remove services",
+        "Toggle unconstrained",
+        "Toggle S4U2Proxy"
+      ],
+      "diagnostics": [
+        "Ticket issuance test",
+        "Encryption type config",
+        "Ticket policy display"
+      ]
+    },
+    "auth_policies_and_silos": {
+      "phase": 5,
+      "status": "planned",
+      "policy_actions": [
+        "List",
+        "Create",
+        "Modify",
+        "Delete",
+        "Assign to user"
+      ],
+      "policy_options": [
+        "Strong NTLM policy",
+        "TGT lifetimes",
+        "Allowed-to-authenticate conditions",
+        "NTLM exceptions"
+      ],
+      "silo_actions": [
+        "List",
+        "Create",
+        "Modify",
+        "Delete",
+        "Grant/revoke membership",
+        "Enforce/audit toggle"
+      ]
+    },
+    "fsmo_roles": {
+      "phase": 5,
+      "status": "planned",
+      "roles": [
+        "Schema Master",
+        "Domain Naming Master",
+        "PDC Emulator",
+        "RID Master",
+        "Infrastructure Master"
+      ],
+      "actions": [
+        "Display",
+        "Transfer (type-to-confirm)",
+        "Seize (type-to-confirm with warnings)"
+      ]
+    },
+    "schema": {
+      "phase": 5,
+      "status": "planned",
+      "actions": [
+        "Browse attributes",
+        "Show definition",
+        "Show containing objectClasses",
+        "Browse objectClasses",
+        "Modify attribute (type-to-confirm)"
+      ]
+    },
+    "trusts": {
+      "phase": 5,
+      "status": "planned",
+      "actions": [
+        "List",
+        "Show",
+        "Create",
+        "Modify",
+        "Delete",
+        "Validate",
+        "Manage namespaces"
+      ],
+      "limitations_note": "Experimental in Samba"
+    },
+    "service_accounts": {
+      "phase": 6,
+      "status": "planned",
+      "discovery": [
+        "Filter by OU",
+        "Filter by naming convention",
+        "Filter by SPN presence",
+        "Filter by delegation flags"
+      ],
+      "actions": [
+        "Create (service defaults)",
+        "Manage SPNs",
+        "Configure delegation",
+        "Generate keytab",
+        "Rotate password"
+      ]
+    },
+    "certificates": {
+      "phase": 6,
+      "status": "planned",
+      "per_user": [
+        "Decode userCertificate",
+        "Subject/issuer/serial/validity/usage/SAN",
+        "Status indicator",
+        "Download PEM/DER"
+      ],
+      "overview": [
+        "Users with certs",
+        "Expiring 30/60/90 days",
+        "By issuer",
+        "Expired report"
+      ],
+      "pki_awareness": "OpenXPKI SCEP and MDM integration"
+    },
+    "delegation_of_control": {
+      "phase": 5,
+      "status": "planned",
+      "actions": [
+        "View ACLs per OU",
+        "Set ACLs",
+        "Delete ACEs",
+        "Effective permissions viewer",
+        "Common delegation templates"
+      ]
+    },
+    "password_policy": {
+      "phase": 2,
+      "status": "planned",
+      "default_fields": [
+        "Min length",
+        "Complexity",
+        "History",
+        "Min/max age",
+        "Lockout threshold/duration/window",
+        "Reversible encryption"
+      ],
+      "pso_actions": [
+        "List",
+        "Create",
+        "Modify",
+        "Delete",
+        "Apply/unapply",
+        "Show effective for user"
+      ],
+      "password_tester": true
+    },
+    "domain_management": {
+      "phase": 6,
+      "status": "planned",
+      "actions": [
+        "Show levels",
+        "Raise level",
+        "Online/offline backup",
+        "Backup with rename",
+        "Restore",
+        "dbcheck",
+        "dSHeuristics config"
+      ]
+    },
+    "advanced_search": {
+      "phase": 2,
+      "status": "planned",
+      "modes": [
+        "Visual filter builder",
+        "Raw LDAP filter"
+      ],
+      "features": [
+        "Attribute chooser",
+        "Export CSV/JSON/LDIF",
+        "Save queries with parameterization",
+        "Common templates"
+      ]
+    },
+    "audit_log": {
+      "phase": 6,
+      "status": "planned",
+      "filters": [
+        "Actor",
+        "Action type",
+        "Object type",
+        "Object name/DN",
+        "Time range",
+        "Result",
+        "DC",
+        "Source IP"
+      ],
+      "actions": [
+        "Export CSV/JSON",
+        "Retention policy"
+      ]
+    },
+    "webhooks": {
+      "phase": 6,
+      "status": "planned",
+      "security": {
+        "endpoints": "HTTPS only",
+        "signing": "HMAC-SHA256",
+        "payload": "No passwords/sensitive data",
+        "rate_limiting": true
+      },
+      "events": [
+        "Account lockout",
+        "Replication failure",
+        "DC unreachable",
+        "Password reset",
+        "User created/deleted",
+        "Privileged group change",
+        "DNS zone change",
+        "Cert expiring",
+        "FSMO transfer/seizure"
+      ]
+    }
+  },
+  "user_flows": [
+    {
+      "id": "UF-01",
+      "name": "New Employee Onboarding",
+      "actor": "User Admin / Full Admin",
+      "steps": [
+        "Create User form",
+        "Progressive disclosure: name/username/password then department/title/manager/groups/OU",
+        "Password generator with policy validation",
+        "Review with samba-tool equivalent",
+        "Submit"
+      ]
+    },
+    {
+      "id": "UF-02",
+      "name": "Password Reset (Help Desk)",
+      "actor": "Help Desk",
+      "steps": [
+        "Search user",
+        "Open drawer",
+        "Reset Password modal",
+        "Enter/generate password",
+        "Toggle must-change",
+        "Confirm",
+        "Audit logged"
+      ]
+    },
+    {
+      "id": "UF-03",
+      "name": "Account Lockout Investigation",
+      "actor": "Help Desk",
+      "steps": [
+        "Dashboard alert",
+        "Locked Out tab",
+        "View lockout details",
+        "Unlock or investigate in audit log"
+      ]
+    },
+    {
+      "id": "UF-04",
+      "name": "DNS Record Troubleshooting",
+      "actor": "DNS Admin",
+      "steps": [
+        "Dashboard DNS alert",
+        "Diagnostics page",
+        "SRV validator matrix",
+        "Fix missing records",
+        "Verify with cross-DC checker"
+      ]
+    },
+    {
+      "id": "UF-05",
+      "name": "Replication Failure Response",
+      "actor": "Full Admin",
+      "steps": [
+        "Dashboard replication alert",
+        "Topology view",
+        "Identify failed link",
+        "Force sync",
+        "Monitor convergence",
+        "LDAP compare if persistent"
+      ]
+    },
+    {
+      "id": "UF-06",
+      "name": "Employee Offboarding",
+      "actor": "User Admin",
+      "steps": [
+        "Search user",
+        "Disable account",
+        "Remove from groups",
+        "Move to Disabled Users OU",
+        "Set expiration date"
+      ]
+    },
+    {
+      "id": "UF-07",
+      "name": "Self-Service Password Change",
+      "actor": "Any user",
+      "steps": [
+        "Self-Service Portal",
+        "Change Password form",
+        "Current + new + confirm",
+        "Inline policy validation",
+        "Submit"
+      ]
+    },
+    {
+      "id": "UF-08",
+      "name": "Bulk User Import",
+      "actor": "User Admin",
+      "steps": [
+        "Upload CSV/JSON",
+        "Dry-run validation",
+        "Fix errors or skip",
+        "Execute",
+        "Results summary"
+      ]
+    },
+    {
+      "id": "UF-09",
+      "name": "Service Account Provisioning",
+      "actor": "Full Admin",
+      "steps": [
+        "Create with service defaults",
+        "Add SPNs",
+        "Configure delegation",
+        "Set auth policy",
+        "Generate keytab"
+      ]
+    },
+    {
+      "id": "UF-10",
+      "name": "DNS Aging Setup",
+      "actor": "DNS Admin",
+      "steps": [
+        "Zone Properties",
+        "Configure Aging",
+        "Set intervals",
+        "Preview timeline",
+        "Bulk mark critical as static",
+        "Confirm"
+      ]
+    }
+  ],
+  "api": {
+    "base_path": "/api",
+    "auth_method": "Session cookie",
+    "format": "JSON",
+    "endpoint_groups": {
+      "auth": [
+        {
+          "method": "POST",
+          "path": "/auth/login"
+        },
+        {
+          "method": "POST",
+          "path": "/auth/logout"
+        },
+        {
+          "method": "GET",
+          "path": "/auth/me"
+        }
+      ],
+      "users": [
+        {
+          "method": "GET",
+          "path": "/users"
+        },
+        {
+          "method": "GET",
+          "path": "/users/:id"
+        },
+        {
+          "method": "POST",
+          "path": "/users"
+        },
+        {
+          "method": "PUT",
+          "path": "/users/:id"
+        },
+        {
+          "method": "DELETE",
+          "path": "/users/:id"
+        },
+        {
+          "method": "POST",
+          "path": "/users/:id/password"
+        },
+        {
+          "method": "POST",
+          "path": "/users/:id/enable"
+        },
+        {
+          "method": "POST",
+          "path": "/users/:id/disable"
+        },
+        {
+          "method": "POST",
+          "path": "/users/:id/unlock"
+        },
+        {
+          "method": "POST",
+          "path": "/users/:id/move"
+        },
+        {
+          "method": "POST",
+          "path": "/users/:id/rename"
+        },
+        {
+          "method": "GET",
+          "path": "/users/:id/certificates"
+        },
+        {
+          "method": "POST",
+          "path": "/users/import"
+        },
+        {
+          "method": "GET",
+          "path": "/users/export"
+        }
+      ],
+      "groups": [
+        {
+          "method": "GET",
+          "path": "/groups"
+        },
+        {
+          "method": "GET",
+          "path": "/groups/:id"
+        },
+        {
+          "method": "POST",
+          "path": "/groups"
+        },
+        {
+          "method": "PUT",
+          "path": "/groups/:id"
+        },
+        {
+          "method": "DELETE",
+          "path": "/groups/:id"
+        },
+        {
+          "method": "POST",
+          "path": "/groups/:id/members"
+        },
+        {
+          "method": "DELETE",
+          "path": "/groups/:id/members/:member"
+        },
+        {
+          "method": "GET",
+          "path": "/groups/:id/effective-members"
+        },
+        {
+          "method": "GET",
+          "path": "/groups/stats"
+        }
+      ],
+      "computers": [
+        {
+          "method": "GET",
+          "path": "/computers"
+        },
+        {
+          "method": "GET",
+          "path": "/computers/:id"
+        },
+        {
+          "method": "POST",
+          "path": "/computers"
+        },
+        {
+          "method": "DELETE",
+          "path": "/computers/:id"
+        },
+        {
+          "method": "POST",
+          "path": "/computers/:id/disable"
+        },
+        {
+          "method": "POST",
+          "path": "/computers/:id/move"
+        },
+        {
+          "method": "POST",
+          "path": "/computers/:id/dns-cleanup"
+        }
+      ],
+      "contacts": [
+        {
+          "method": "GET",
+          "path": "/contacts"
+        },
+        {
+          "method": "GET",
+          "path": "/contacts/:id"
+        },
+        {
+          "method": "POST",
+          "path": "/contacts"
+        },
+        {
+          "method": "PUT",
+          "path": "/contacts/:id"
+        },
+        {
+          "method": "DELETE",
+          "path": "/contacts/:id"
+        },
+        {
+          "method": "POST",
+          "path": "/contacts/:id/move"
+        }
+      ],
+      "ous": [
+        {
+          "method": "GET",
+          "path": "/ous"
+        },
+        {
+          "method": "GET",
+          "path": "/ous/tree"
+        },
+        {
+          "method": "GET",
+          "path": "/ous/:dn/objects"
+        },
+        {
+          "method": "POST",
+          "path": "/ous"
+        },
+        {
+          "method": "DELETE",
+          "path": "/ous/:dn"
+        },
+        {
+          "method": "POST",
+          "path": "/ous/:dn/move"
+        },
+        {
+          "method": "POST",
+          "path": "/ous/:dn/rename"
+        }
+      ],
+      "dns": [
+        {
+          "method": "GET",
+          "path": "/dns/serverinfo"
+        },
+        {
+          "method": "GET",
+          "path": "/dns/zones"
+        },
+        {
+          "method": "GET",
+          "path": "/dns/zones/:zone"
+        },
+        {
+          "method": "POST",
+          "path": "/dns/zones"
+        },
+        {
+          "method": "DELETE",
+          "path": "/dns/zones/:zone"
+        },
+        {
+          "method": "PUT",
+          "path": "/dns/zones/:zone/options"
+        },
+        {
+          "method": "GET",
+          "path": "/dns/zones/:zone/records"
+        },
+        {
+          "method": "POST",
+          "path": "/dns/zones/:zone/records"
+        },
+        {
+          "method": "PUT",
+          "path": "/dns/zones/:zone/records"
+        },
+        {
+          "method": "DELETE",
+          "path": "/dns/zones/:zone/records"
+        },
+        {
+          "method": "POST",
+          "path": "/dns/query"
+        },
+        {
+          "method": "GET",
+          "path": "/dns/diagnostics"
+        },
+        {
+          "method": "GET",
+          "path": "/dns/consistency"
+        },
+        {
+          "method": "POST",
+          "path": "/dns/cleanup/:hostname"
+        },
+        {
+          "method": "GET",
+          "path": "/dns/roothints"
+        }
+      ],
+      "replication": [
+        {
+          "method": "GET",
+          "path": "/replication/status"
+        },
+        {
+          "method": "GET",
+          "path": "/replication/topology"
+        },
+        {
+          "method": "GET",
+          "path": "/replication/uptodateness"
+        },
+        {
+          "method": "POST",
+          "path": "/replication/sync"
+        },
+        {
+          "method": "POST",
+          "path": "/replication/kcc"
+        },
+        {
+          "method": "POST",
+          "path": "/replication/compare"
+        }
+      ],
+      "sites": [
+        {
+          "method": "GET",
+          "path": "/sites"
+        },
+        {
+          "method": "POST",
+          "path": "/sites"
+        },
+        {
+          "method": "DELETE",
+          "path": "/sites/:name"
+        },
+        {
+          "method": "GET",
+          "path": "/sites/:name/subnets"
+        },
+        {
+          "method": "POST",
+          "path": "/sites/subnets"
+        },
+        {
+          "method": "DELETE",
+          "path": "/sites/subnets/:subnet"
+        },
+        {
+          "method": "PUT",
+          "path": "/sites/subnets/:subnet/site"
+        }
+      ],
+      "gpo": [
+        {
+          "method": "GET",
+          "path": "/gpo"
+        },
+        {
+          "method": "POST",
+          "path": "/gpo"
+        },
+        {
+          "method": "DELETE",
+          "path": "/gpo/:id"
+        },
+        {
+          "method": "POST",
+          "path": "/gpo/:id/link"
+        },
+        {
+          "method": "DELETE",
+          "path": "/gpo/:id/link"
+        },
+        {
+          "method": "GET",
+          "path": "/gpo/manage/:type"
+        },
+        {
+          "method": "POST",
+          "path": "/gpo/manage/:type"
+        }
+      ],
+      "kerberos": [
+        {
+          "method": "GET",
+          "path": "/spn/:account"
+        },
+        {
+          "method": "POST",
+          "path": "/spn"
+        },
+        {
+          "method": "DELETE",
+          "path": "/spn"
+        },
+        {
+          "method": "GET",
+          "path": "/delegation/:account"
+        },
+        {
+          "method": "POST",
+          "path": "/delegation/:account/service"
+        },
+        {
+          "method": "DELETE",
+          "path": "/delegation/:account/service"
+        },
+        {
+          "method": "POST",
+          "path": "/keytab/:account"
+        }
+      ],
+      "auth_policies": [
+        {
+          "method": "GET",
+          "path": "/auth-policies"
+        },
+        {
+          "method": "POST",
+          "path": "/auth-policies"
+        },
+        {
+          "method": "PUT",
+          "path": "/auth-policies/:name"
+        },
+        {
+          "method": "DELETE",
+          "path": "/auth-policies/:name"
+        },
+        {
+          "method": "GET",
+          "path": "/auth-silos"
+        },
+        {
+          "method": "POST",
+          "path": "/auth-silos"
+        },
+        {
+          "method": "PUT",
+          "path": "/auth-silos/:name"
+        },
+        {
+          "method": "DELETE",
+          "path": "/auth-silos/:name"
+        },
+        {
+          "method": "POST",
+          "path": "/auth-silos/:name/members"
+        },
+        {
+          "method": "DELETE",
+          "path": "/auth-silos/:name/members/:member"
+        }
+      ],
+      "fsmo": [
+        {
+          "method": "GET",
+          "path": "/fsmo"
+        },
+        {
+          "method": "POST",
+          "path": "/fsmo/transfer"
+        },
+        {
+          "method": "POST",
+          "path": "/fsmo/seize"
+        }
+      ],
+      "schema": [
+        {
+          "method": "GET",
+          "path": "/schema/attributes/:name"
+        },
+        {
+          "method": "GET",
+          "path": "/schema/attributes/:name/objectclasses"
+        },
+        {
+          "method": "GET",
+          "path": "/schema/objectclasses/:name"
+        },
+        {
+          "method": "PUT",
+          "path": "/schema/attributes/:name"
+        }
+      ],
+      "trusts": [
+        {
+          "method": "GET",
+          "path": "/trusts"
+        },
+        {
+          "method": "GET",
+          "path": "/trusts/:domain"
+        },
+        {
+          "method": "POST",
+          "path": "/trusts"
+        },
+        {
+          "method": "PUT",
+          "path": "/trusts/:domain"
+        },
+        {
+          "method": "DELETE",
+          "path": "/trusts/:domain"
+        },
+        {
+          "method": "POST",
+          "path": "/trusts/:domain/validate"
+        }
+      ],
+      "password_policy": [
+        {
+          "method": "GET",
+          "path": "/password-policy"
+        },
+        {
+          "method": "PUT",
+          "path": "/password-policy"
+        },
+        {
+          "method": "GET",
+          "path": "/password-policy/pso"
+        },
+        {
+          "method": "POST",
+          "path": "/password-policy/pso"
+        },
+        {
+          "method": "PUT",
+          "path": "/password-policy/pso/:name"
+        },
+        {
+          "method": "DELETE",
+          "path": "/password-policy/pso/:name"
+        },
+        {
+          "method": "POST",
+          "path": "/password-policy/pso/:name/apply"
+        },
+        {
+          "method": "POST",
+          "path": "/password-policy/pso/:name/unapply"
+        },
+        {
+          "method": "GET",
+          "path": "/password-policy/user/:username"
+        },
+        {
+          "method": "POST",
+          "path": "/password-policy/test"
+        }
+      ],
+      "domain": [
+        {
+          "method": "GET",
+          "path": "/domain/info"
+        },
+        {
+          "method": "GET",
+          "path": "/domain/level"
+        },
+        {
+          "method": "POST",
+          "path": "/domain/level"
+        },
+        {
+          "method": "POST",
+          "path": "/domain/backup"
+        },
+        {
+          "method": "POST",
+          "path": "/domain/restore"
+        },
+        {
+          "method": "POST",
+          "path": "/domain/dbcheck"
+        }
+      ],
+      "dsacl": [
+        {
+          "method": "GET",
+          "path": "/dsacl/:dn"
+        },
+        {
+          "method": "PUT",
+          "path": "/dsacl/:dn"
+        },
+        {
+          "method": "DELETE",
+          "path": "/dsacl/:dn"
+        }
+      ],
+      "search": [
+        {
+          "method": "POST",
+          "path": "/search"
+        },
+        {
+          "method": "GET",
+          "path": "/search/saved"
+        },
+        {
+          "method": "POST",
+          "path": "/search/saved"
+        }
+      ],
+      "self_service": [
+        {
+          "method": "GET",
+          "path": "/self"
+        },
+        {
+          "method": "PUT",
+          "path": "/self"
+        },
+        {
+          "method": "POST",
+          "path": "/self/password"
+        }
+      ],
+      "audit": [
+        {
+          "method": "GET",
+          "path": "/audit"
+        },
+        {
+          "method": "GET",
+          "path": "/audit/export"
+        },
+        {
+          "method": "PUT",
+          "path": "/audit/retention"
+        }
+      ]
+    }
+  },
+  "development_phases": [
+    {
+      "phase": 1,
+      "name": "Foundation",
+      "status": "completed",
+      "milestones": "M1-M12",
+      "summary": "Project scaffold, app shell, all directory pages, live LDAP, auth, write ops, deployment"
+    },
+    {
+      "phase": 2,
+      "name": "Completeness",
+      "status": "in_progress",
+      "milestones": "M13+",
+      "summary": "Write ops debugging, self-service, full user properties, contacts, rename, search, password policies"
+    },
+    {
+      "phase": 3,
+      "name": "DNS Deep Dive",
+      "status": "planned",
+      "summary": "Server info, zone properties, aging/scavenging, query tool, consistency checker, bulk ops"
+    },
+    {
+      "phase": 4,
+      "name": "Infrastructure & Replication",
+      "status": "planned",
+      "summary": "D3.js topology, replication status, LDAP compare, sites & subnets"
+    },
+    {
+      "phase": 5,
+      "name": "Policy & Security",
+      "status": "planned",
+      "summary": "GPO, Kerberos/SPNs, auth policies/silos, FSMO, schema, trusts, delegation"
+    },
+    {
+      "phase": 6,
+      "name": "Operations & Polish",
+      "status": "planned",
+      "summary": "Service accounts, certificates, backup/restore, audit, webhooks, settings"
+    }
+  ],
+  "samba_limitations": [
+    {
+      "feature": "DNS conditional forwarders",
+      "status": "Not implemented",
+      "approach": "Info banner"
+    },
+    {
+      "feature": "DNS zone transfers",
+      "status": "Not implemented (AD replication used)",
+      "approach": "Info banner"
+    },
+    {
+      "feature": "DNS scavenging",
+      "status": "Aging supported, auto-scavenging limited",
+      "approach": "App-level scavenging job"
+    },
+    {
+      "feature": "DNS forwarder config",
+      "status": "smb.conf only",
+      "approach": "Display config, explain change requires smb.conf"
+    },
+    {
+      "feature": "DNSSEC",
+      "status": "Not supported",
+      "approach": "Info banner"
+    },
+    {
+      "feature": "Trust relationships",
+      "status": "Experimental",
+      "approach": "Warning with specific limitations"
+    },
+    {
+      "feature": "GPO enforcement on DCs",
+      "status": "Not supported",
+      "approach": "Explain; use passwordsettings instead"
+    },
+    {
+      "feature": "gMSA",
+      "status": "Partial",
+      "approach": "Display if supported, note limitations"
+    },
+    {
+      "feature": "AD Recycle Bin",
+      "status": "Supported at sufficient forest level",
+      "approach": "Implement if level allows"
+    }
+  ],
+  "nonfunctional_requirements": {
+    "performance": {
+      "dashboard_load": "< 2s",
+      "user_list_1000": "< 1s",
+      "dns_records_10000": "< 2s",
+      "ldap_query": "< 500ms",
+      "write_ops": "< 3s"
+    },
+    "security": [
+      "TLS 1.2+",
+      "HttpOnly/Secure/SameSite cookies",
+      "CSRF tokens",
+      "Rate limiting (5/min/IP)",
+      "AES-256-GCM credentials",
+      "Immutable audit trail",
+      "No creds in URLs/logs",
+      "Strict CSP"
+    ],
+    "reliability": [
+      "DC failover",
+      "Read-only degradation",
+      "PostgreSQL session persistence"
+    ],
+    "compatibility": {
+      "samba": "4.15+",
+      "os": [
+        "FreeBSD 14+",
+        "Linux"
+      ],
+      "browsers": "Latest 2 versions of Chrome/Firefox/Safari/Edge",
+      "layout": "Desktop-first, tablet functional"
+    }
+  }
+}
