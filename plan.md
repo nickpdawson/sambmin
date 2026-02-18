@@ -488,3 +488,281 @@ sambmin/
 - Rate limiting blocks brute-force login attempts
 - Audit log cannot be tampered with by non-admin users
 - TLS configuration scores A+ on SSL Labs (when using Let's Encrypt)
+
+---
+
+## Milestones & Accomplishments
+
+### Completed
+
+**M1: Project Scaffold** (2026-02-17)
+- [x] Git repo initialized
+- [x] CLAUDE.md with project conventions
+- [x] Go backend structure: `api/cmd/sambmin/main.go`, handlers, middleware, config, models, scripts executor, DNS backend interface
+- [x] React + Vite + TypeScript + Ant Design 5 frontend scaffolded
+- [x] Python samba-tool wrapper scripts: `user_ops.py`, `group_ops.py`, `dns_ops.py`
+- [x] FreeBSD deployment configs: rc.d service script, nginx reverse proxy, TLS setup scripts
+- [x] Theme system with light/dark mode (Ant Design token-based, system preference detection)
+- [x] 13 placeholder pages for all navigation sections
+- Commit: `1301174`
+
+**M2: Application Shell & Dashboard** (2026-02-17)
+- [x] Collapsible sidebar navigation with grouped menu items
+- [x] Breadcrumb navigation
+- [x] Dark/light mode toggle with localStorage persistence
+- [x] Dashboard with DC health strip (3 DCs, color-coded status, FSMO role tags)
+- [x] Alert banners (conditional: replication lag, locked accounts)
+- [x] Quick action cards (Create User, Reset Password, DNS Record, Unlock)
+- [x] Domain metrics (users, computers, groups, DNS zones, locked, disabled)
+- [x] Recent activity timeline with success/failure indicators
+- [x] Mock API handlers for dashboard data
+
+**M3: Users Page** (2026-02-17)
+- [x] ProTable with sortable, filterable columns (name, email, dept, title, status, last logon, groups)
+- [x] Tab filters: All | Active | Disabled | Locked Out (with badge counts)
+- [x] Row selection with bulk action bar (floating bottom bar, Linear-style)
+- [x] User detail drawer (560px, identity with copy-to-clipboard, organization, account status, group memberships)
+- [x] Create user drawer (progressive disclosure, auto-username, password generator, collapsible sections)
+- [x] CLI equivalent display (show samba-tool command)
+- [x] Per-row action menu (View, Reset Password, Unlock, Enable/Disable, Delete)
+- [x] Mock API handler with 8 realistic AD users
+- Commit: `9c46b31`
+
+**M4: Command Palette** (2026-02-17)
+- [x] Cmd+K keyboard shortcut (global)
+- [x] cmdk-based fuzzy search
+- [x] Actions group: Create User, Reset Password, Unlock Account, Create DNS Record, Force Replication
+- [x] Navigation group: all 14 sections with keyboard shortcut hints
+- [x] Custom CSS with blurred overlay, dark mode support
+- Commit: `c7090a3`
+
+**M5: DNS & Settings Pages** (2026-02-17)
+- [x] DNS mock API: zones (6 zones, mixed samba/bind9), records (23 records), diagnostics (7 health checks)
+- [x] Settings mock API: connection (3 DCs), TLS, auth (Kerberos/LDAP), RBAC (5 roles), application info
+- [x] DNS frontend: zone list with stats, record table with type filter tabs, diagnostics with health summary
+- [x] DNS record type badges, copy-to-clipboard, CLI equivalent commands
+- [x] Settings frontend: connection card with DC table, TLS cert status, auth config, RBAC role mapping table, app info
+- [x] All routes wired to mock handlers
+
+**M6: Live LDAP Integration & Deployment** (2026-02-17)
+- [x] LDAP connection pool (`api/internal/ldap/pool.go`) with multi-DC failover, TLS, health checks, paged search
+- [x] AD attribute constants and UAC/groupType flag parsing (`api/internal/ldap/attributes.go`)
+- [x] Directory client with typed queries (`api/internal/directory/`) — users, groups, computers, OUs, filters
+- [x] Live handlers: `users_live.go`, `directory_live.go` (groups, computers, OUs)
+- [x] Conditional routing: live LDAP handlers when DCs configured, mock handlers otherwise
+- [x] Service account bind (CN=services) with SAMBMIN_BIND_PW env var
+- [x] Cross-compiled and deployed to Bridger (FreeBSD 14.2)
+- [x] LDAPS connection to Samba DC on localhost:636 (TLS 1.3, Let's Encrypt cert)
+- [x] Verified: 31 real users, 48 computers, 50 groups from live AD
+- [x] Real DC topology discovered: bridger, showdown, yellowstone, wintergreen, moran (5 DCs)
+
+**M7: nginx + TLS + DNS** (2026-02-17)
+- [x] nginx server block for `sambmin.dzsec.net` (separate from bridger.dzsec.net to avoid `/api/` conflict with MDM)
+- [x] DNS CNAME record: `sambmin.dzsec.net → bridger.dzsec.net` (via `samba-tool dns add`)
+- [x] Let's Encrypt cert expanded to cover `sambmin.dzsec.net` SAN (via Cloudflare DNS challenge)
+- [x] SPA routing: `try_files $uri $uri/ /index.html` for client-side React Router
+- [x] Static asset caching (30d immutable for hashed `/assets/` files)
+- [x] Full site live at `https://sambmin.dzsec.net` with green lock
+
+**M8: Groups, Computers, OUs Frontend** (2026-02-17)
+- [x] Groups page: ProTable with type/scope tags, member count, search, tabs (All/Security/Distribution), detail drawer with member list
+- [x] Computers page: ProTable with DNS hostname, OS, status, last logon, detail drawer with network/OS/account sections
+- [x] OUs page: dual view (List/Tree toggle), tree built from API `/api/ous/tree`, detail drawer with location info
+- [x] All three pages fetch live LDAP data from API
+- [x] English locale fix (antd `en_US` ConfigProvider)
+
+**M9: Live Dashboard + DNS Data** (2026-02-17)
+- [x] Dashboard: live DC health checks (LDAP probe per DC with 3s timeout)
+- [x] Dashboard: live recent activity (LDAP search for objects changed in last 24h)
+- [x] DNS: `samba-tool dns` integration via `exec.Command` (`api/internal/dns/samba.go`)
+- [x] DNS: live zone listing, record listing, diagnostics (AD SRV record checks)
+- [x] FreeBSD rc.d service script with secrets.env for bind password
+- [x] DC health fix: store resolved SAMBMIN_BIND_PW back into config for handler access
+- [x] 4/5 DCs healthy (yellowstone genuinely unreachable)
+
+### In Progress
+
+**M10: Authentication System**
+- [x] Session store with AES-256-GCM encrypted password storage (`api/internal/auth/session.go`)
+- [x] LDAP bind authenticator supporting sAMAccountName, UPN, DN formats (`api/internal/auth/ldap_bind.go`)
+- [x] RequireAuth middleware (`api/internal/auth/middleware.go`)
+- [x] Login/logout/me HTTP handlers with secure cookies (`api/internal/handlers/auth.go`)
+- [x] Auth initialization in main.go (session store + LDAP authenticator targeting primary DC)
+- [x] React AuthProvider context with session persistence check on mount (`web/src/hooks/useAuth.tsx`)
+- [x] Login page calls real `/api/auth/login`, redirects on success
+- [x] Protected routes: unauthenticated users redirected to `/login`
+- [x] Header shows username + logout button
+- [x] API client auto-redirects to `/login` on 401
+- [x] Auth tests: 10/10 pass (session CRUD, password encrypt/decrypt, expiry, DN conversion)
+- [ ] Cross-compile and deploy to Bridger
+- [ ] End-to-end test: login with real AD credentials
+
+### Next Up
+
+**M11: Write Operations**
+- [ ] Password reset via samba-tool (most requested admin action)
+- [ ] Enable/disable/unlock accounts via LDAP modify
+- [ ] User attribute editing via LDAP modify (department, title, description)
+- [ ] Group membership add/remove
+- [ ] User creation via samba-tool
+- [ ] DNS record CRUD via samba-tool
+- [ ] Audit logging for all mutations
+
+**M12: Replication & Infrastructure**
+- [ ] D3.js replication topology visualization
+- [ ] `samba-tool drs showrepl` integration for real replication status
+- [ ] Sites & Services management
+- [ ] FSMO role display and transfer workflow
+
+**M13: Polish & Hardening**
+- [ ] PostgreSQL integration for audit log, session storage, app config
+- [ ] Saved searches / bookmarks
+- [ ] Customizable dashboard layout
+- [ ] CSV/JSON export from all list views
+
+---
+
+## Write Operations Architecture
+
+### The Problem: Read vs Write Credentials
+
+The current `services` bind account is appropriate for **reading** the directory. Write operations (creating users, modifying groups, resetting passwords, deleting objects) require **Domain Admin** or equivalent privileges. We do NOT want to run the entire application with Domain Admin credentials — that violates least privilege.
+
+### Solution: Two-Tier Authentication
+
+**Tier 1: Service Account (always active)**
+- Account: `CN=services,CN=Users,DC=dzsec,DC=net`
+- Purpose: All read operations (list, search, detail views, dashboard metrics, DC health)
+- Credentials: Bound at server startup via `SAMBMIN_BIND_PW`
+- No user interaction required
+
+**Tier 2: User Session (on-demand, for writes)**
+- User authenticates via login form (LDAP bind with their own credentials) or Kerberos/SPNEGO
+- Session stored in secure cookie (JWT or opaque token backed by PostgreSQL)
+- Write operations execute under the **user's identity**, not the service account
+- Two approaches for executing writes:
+
+  **Approach A: LDAP Bind per Write (simpler, recommended for Phase 1)**
+  - When user performs a write, API creates a new LDAP connection bound as the user
+  - Pros: Simple, uses LDAP directly, user's permissions enforced by AD itself
+  - Cons: Can't do everything via LDAP (password resets, some GPO ops need samba-tool)
+
+  **Approach B: samba-tool with User Credentials (for operations requiring it)**
+  - Pass user credentials to `samba-tool` via `-U username%password` flag
+  - Works for: user creation, password reset, group management, DNS, GPO, FSMO transfer
+  - User's session stores their encrypted credentials (encrypted with server-side key, never plaintext at rest)
+  - Credentials cleared on logout or session timeout
+
+  **Recommended: Hybrid A+B**
+  - Simple attribute edits (description, department, title, phone): LDAP modify as user
+  - Complex operations (create user, reset password, GPO, FSMO): samba-tool as user
+  - All writes audited with the acting user's identity
+
+### Authentication Flow
+
+```
+1. User navigates to https://sambmin.dzsec.net
+2. If Kerberos ticket available (SPNEGO):
+   - nginx passes Negotiate header to Go API
+   - Go API validates via gokrb5, creates session
+3. Otherwise, login form:
+   - User enters AD username + password
+   - Go API performs LDAP bind to verify credentials
+   - On success: creates session, stores encrypted creds for write operations
+4. Session cookie set (HttpOnly, Secure, SameSite=Strict)
+5. Reads: always via service account (fast, pooled)
+6. Writes: via user's credentials (LDAP bind or samba-tool -U)
+7. Logout: clear session + encrypted creds
+```
+
+### RBAC Model
+
+Map AD group membership to Sambmin roles:
+
+| Role | AD Group | Can Do |
+|------|----------|--------|
+| **Full Admin** | Domain Admins, Enterprise Admins | Everything: create/delete users, groups, OUs, DNS, GPO, FSMO, schema |
+| **User Admin** | Account Operators, custom group | Create/edit/delete users, reset passwords, manage group membership |
+| **DNS Admin** | DnsAdmins, custom group | Create/edit/delete DNS zones and records |
+| **Help Desk** | custom group | Reset passwords, unlock accounts, view all objects |
+| **Read Only** | Domain Users (default) | View everything, edit nothing |
+
+Roles are checked in the Go API middleware. The AD itself also enforces ACLs — if a user tries to modify an object they don't have AD permissions on, the LDAP modify or samba-tool command will fail with an access denied error, which we surface cleanly.
+
+### Write Operations by Object Type
+
+**Users**
+| Operation | Method | Command/Action |
+|-----------|--------|----------------|
+| Create user | samba-tool | `samba-tool user create <username> <password> --given-name=... --surname=... -U user%pass` |
+| Edit attributes | LDAP modify | Direct LDAP modify as user (displayName, department, title, etc.) |
+| Delete user | samba-tool | `samba-tool user delete <username> -U user%pass` |
+| Reset password | samba-tool | `samba-tool user setpassword <username> --newpassword=... -U user%pass` |
+| Enable/disable | LDAP modify | Toggle userAccountControl bit 0x0002 |
+| Unlock account | LDAP modify | Set lockoutTime to 0 |
+| Move to OU | LDAP moddn | LDAP ModifyDN operation |
+| Add to group | LDAP modify | Add member DN to group's member attribute |
+
+**Groups**
+| Operation | Method | Command/Action |
+|-----------|--------|----------------|
+| Create group | samba-tool | `samba-tool group add <name> --group-type=... -U user%pass` |
+| Delete group | samba-tool | `samba-tool group delete <name> -U user%pass` |
+| Edit description | LDAP modify | Direct LDAP modify |
+| Add member | samba-tool | `samba-tool group addmembers <group> <user> -U user%pass` |
+| Remove member | samba-tool | `samba-tool group removemembers <group> <user> -U user%pass` |
+
+**Computers**
+| Operation | Method | Command/Action |
+|-----------|--------|----------------|
+| Delete computer | LDAP delete | LDAP delete as user |
+| Disable computer | LDAP modify | Toggle userAccountControl |
+| Reset machine password | samba-tool | `samba-tool computer reset <name> -U user%pass` |
+
+**OUs / Containers**
+| Operation | Method | Command/Action |
+|-----------|--------|----------------|
+| Create OU | samba-tool | `samba-tool ou create <dn> -U user%pass` |
+| Delete OU | samba-tool | `samba-tool ou delete <dn> -U user%pass` (fails if children exist) |
+| Rename OU | LDAP moddn | LDAP ModifyDN |
+| Move objects into OU | LDAP moddn | LDAP ModifyDN for each object |
+
+**DNS**
+| Operation | Method | Command/Action |
+|-----------|--------|----------------|
+| Create zone | samba-tool | `samba-tool dns zonecreate <server> <zone> -U user%pass` |
+| Delete zone | samba-tool | `samba-tool dns zonedelete <server> <zone> -U user%pass` |
+| Create record | samba-tool | `samba-tool dns add <server> <zone> <name> <type> <value> -U user%pass` |
+| Update record | samba-tool | `samba-tool dns update <server> <zone> <name> <type> <old> <new> -U user%pass` |
+| Delete record | samba-tool | `samba-tool dns delete <server> <zone> <name> <type> <value> -U user%pass` |
+
+### Confirmation Tiers for Write Operations
+
+**Type-to-confirm** (irreversible, high-impact):
+- Delete OU with children
+- FSMO role transfer/seize
+- Schema modifications
+- Delete DNS zone
+
+**Summary confirmation** (modal with details):
+- Delete user/group/computer
+- Disable accounts
+- Bulk operations (enable/disable/delete multiple)
+
+**Inline with undo** (low-risk, easily reversed):
+- Edit description, department, title
+- Change DNS record TTL
+- Add/remove group member
+
+### Implementation Priority
+
+1. **Authentication** — Login form with LDAP bind, session management, logout
+2. **Password reset** — Most requested admin action, high value
+3. **Enable/disable/unlock** — Quick account management
+4. **User attribute editing** — Department, title, description in the drawer
+5. **Group membership** — Add/remove members
+6. **User creation** — Full create workflow
+7. **DNS record CRUD** — Create/update/delete records
+8. **OU management** — Create/delete/move
+9. **Bulk operations** — Multi-select actions
+10. **Computer management** — Delete/disable machine accounts

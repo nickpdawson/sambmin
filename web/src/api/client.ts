@@ -36,7 +36,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: response.statusText }));
-    throw new ApiError(response.status, errorData.error || response.statusText);
+    const error = new ApiError(response.status, errorData.error || response.statusText);
+
+    // Redirect to login on 401 (skip if already on login page or hitting /auth/me)
+    if (response.status === 401 && !path.startsWith('/auth/')) {
+      window.location.href = '/login';
+    }
+
+    throw error;
   }
 
   return response.json();

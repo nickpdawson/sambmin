@@ -1,0 +1,59 @@
+# Sambmin config for Bridger (bridger.dzsec.net)
+bind_addr: "0.0.0.0"
+port: 8443
+allowed_origins:
+  - "http://localhost:5173"
+  - "https://sambmin.dzsec.net"
+  - "http://bridger.dzsec.net:8443"
+
+# Domain Controllers
+# Bridger is itself a DC, so localhost is primary
+domain_controllers:
+  - hostname: bridger.dzsec.net
+    address: 127.0.0.1
+    site: Bozeman
+    port: 636
+    primary: true
+  - hostname: showdown.dzsec.net
+    address: 10.15.15.54
+    site: Bozeman
+    port: 636
+    primary: false
+  - hostname: yellowstone.dzsec.net
+    address: 10.15.15.59
+    site: Bozeman
+    port: 636
+    primary: false
+  - hostname: wintergreen.dzsec.net
+    address: 10.5.150.57
+    port: 636
+    primary: false
+  - hostname: moran.dzsec.net
+    address: 10.200.15.57
+    port: 636
+    primary: false
+
+# LDAP
+base_dn: "DC=dzsec,DC=net"
+bind_dn: "CN=services,CN=Users,DC=dzsec,DC=net"
+# bind_pw: use SAMBMIN_BIND_PW env var instead
+
+# Kerberos
+kerberos:
+  realm: DZSEC.NET
+  kdc: bridger.dzsec.net
+  keytab_path: /usr/local/etc/sambmin/sambmin.keytab
+  implementation: heimdal
+
+# PostgreSQL (not yet configured)
+database:
+  host: localhost
+  port: 5432
+  name: sambmin
+  ssl_mode: disable
+
+# Python scripts
+scripts_path: /usr/local/share/sambmin/scripts
+
+# Session
+session_timeout_hours: 8
