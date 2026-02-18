@@ -1,4 +1,4 @@
-import { ConfigProvider, theme, Spin } from 'antd';
+import { ConfigProvider, theme, Spin, App as AntApp } from 'antd';
 import enUS from 'antd/locale/en_US';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { lightTheme, darkTheme } from './theme/tokens';
@@ -53,33 +53,35 @@ export default function App() {
         algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
       }}
     >
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route element={
-              <RequireAuth>
-                <AppLayout isDark={isDark} onToggleTheme={toggle} />
-              </RequireAuth>
-            }>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/users" element={<Users />} />
-              <Route path="/groups" element={<Groups />} />
-              <Route path="/computers" element={<Computers />} />
-              <Route path="/ous" element={<OUs />} />
-              <Route path="/dns" element={<DNS />} />
-              <Route path="/sites" element={<Sites />} />
-              <Route path="/replication" element={<Replication />} />
-              <Route path="/gpo" element={<GPO />} />
-              <Route path="/kerberos" element={<Kerberos />} />
-              <Route path="/fsmo" element={<FSMO />} />
-              <Route path="/schema" element={<Schema />} />
-              <Route path="/audit" element={<AuditLog />} />
-              <Route path="/settings" element={<Settings />} />
-            </Route>
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
+      <AntApp>
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route element={
+                <RequireAuth>
+                  <AppLayout isDark={isDark} onToggleTheme={toggle} />
+                </RequireAuth>
+              }>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/users" element={<Users />} />
+                <Route path="/groups" element={<Groups />} />
+                <Route path="/computers" element={<Computers />} />
+                <Route path="/ous" element={<OUs />} />
+                <Route path="/dns" element={<DNS />} />
+                <Route path="/sites" element={<Sites />} />
+                <Route path="/replication" element={<Replication />} />
+                <Route path="/gpo" element={<GPO />} />
+                <Route path="/kerberos" element={<Kerberos />} />
+                <Route path="/fsmo" element={<FSMO />} />
+                <Route path="/schema" element={<Schema />} />
+                <Route path="/audit" element={<AuditLog />} />
+                <Route path="/settings" element={<Settings />} />
+              </Route>
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </AntApp>
     </ConfigProvider>
   );
 }
