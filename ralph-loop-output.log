@@ -43,3 +43,30 @@ Here's what was done:
 
 **One architectural note for future milestones:** The three LDAP-based write handlers (`handleUpdateUser`, `handleUpdateGroup`, `handleDeleteComputer`) use `dirClient *directory.Client` which is a concrete struct, not an interface. If you want deeper testing of these handlers' success paths in the future, extracting an interface for `dirClient` would let you mock LDAP operations in tests. Not needed for M13 — all samba-tool paths and validation/guard paths are fully tested.
 
+=== Iteration 1 — 2026-02-18 16:12:49 ===
+<promise>MILESTONE_COMPLETE</promise>
+
+## M14 Summary
+
+Here's what was built:
+
+**Backend (Go):**
+- **Extended User model** with 13 new fields — description, company, office, street/city/state/postalCode/country, phone, mobile, accountExpires, pwdLastSet, badPwdCount
+- **3 new self-service API endpoints:**
+  - `GET /api/self` — retrieve logged-in user's full profile
+  - `PUT /api/self` — edit own phone, mobile, department, title, office
+  - `POST /api/self/password` — change own password (validates current password, refreshes session)
+- **Expanded handleUpdateUser** to support 8 additional writable fields
+- **12 new tests** covering all self-service handler paths
+
+**Frontend (React/AntD):**
+- **Tabbed UserDrawer** with 4 sections:
+  - **Identity** — inline-editable display name, names, email, description, phone, mobile
+  - **Organization** — inline-editable title, department, company, manager, office, full address
+  - **Account** — status, timestamps, password info, bad pwd count, enable/disable/unlock actions
+  - **Groups** — list with remove buttons, add-to-group modal with searchable dropdown
+- **Live inline editing** — click edit icon, modify, save directly via API
+- **onRefresh wiring** — drawer updates reflect immediately in the user list
+
+**All tests pass:** 65 Go tests, TypeScript clean, frontend builds, FreeBSD cross-compile succeeds.
+

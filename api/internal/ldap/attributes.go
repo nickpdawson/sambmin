@@ -23,6 +23,14 @@ const (
 	AttrTitle             = "title"
 	AttrManager           = "manager"
 	AttrCompany           = "company"
+	AttrPhysicalDelivery  = "physicalDeliveryOfficeName"
+	AttrStreetAddress     = "streetAddress"
+	AttrCity              = "l"
+	AttrState             = "st"
+	AttrPostalCode        = "postalCode"
+	AttrCountry           = "co"
+	AttrTelephone         = "telephoneNumber"
+	AttrMobile            = "mobile"
 
 	// Account control
 	AttrUAC               = "userAccountControl"
@@ -74,8 +82,12 @@ const (
 // Default attributes to request for each object type (keeps queries efficient).
 var UserAttrs = []string{
 	AttrDN, AttrSAM, AttrUPN, AttrDisplayName, AttrGivenName, AttrSurname,
-	AttrEmail, AttrDepartment, AttrTitle, AttrManager,
+	AttrEmail, AttrDescription,
+	AttrDepartment, AttrTitle, AttrManager, AttrCompany,
+	AttrPhysicalDelivery, AttrStreetAddress, AttrCity, AttrState, AttrPostalCode, AttrCountry,
+	AttrTelephone, AttrMobile,
 	AttrUAC, AttrUACComputed, AttrLockoutTime, AttrPwdLastSet,
+	AttrAccountExpires, AttrBadPwdCount,
 	AttrWhenCreated, AttrWhenChanged, AttrLastLogon,
 	AttrMemberOf,
 }

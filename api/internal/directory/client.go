@@ -322,6 +322,9 @@ func cnFromDN(dn string) string {
 
 func userFromEntry(entry *goldap.Entry) models.User {
 	enabled, lockedOut, pwdExpired := parseUAC(entry)
+
+	badPwd, _ := strconv.Atoi(getAttr(entry, ldap.AttrBadPwdCount))
+
 	return models.User{
 		DN:              entry.DN,
 		SamAccountName:  getAttr(entry, ldap.AttrSAM),
@@ -330,12 +333,25 @@ func userFromEntry(entry *goldap.Entry) models.User {
 		Surname:         getAttr(entry, ldap.AttrSurname),
 		Email:           getAttr(entry, ldap.AttrEmail),
 		UPN:             getAttr(entry, ldap.AttrUPN),
+		Description:     getAttr(entry, ldap.AttrDescription),
 		Department:      getAttr(entry, ldap.AttrDepartment),
 		Title:           getAttr(entry, ldap.AttrTitle),
+		Company:         getAttr(entry, ldap.AttrCompany),
 		Manager:         getAttr(entry, ldap.AttrManager),
+		Office:          getAttr(entry, ldap.AttrPhysicalDelivery),
+		Street:          getAttr(entry, ldap.AttrStreetAddress),
+		City:            getAttr(entry, ldap.AttrCity),
+		State:           getAttr(entry, ldap.AttrState),
+		PostalCode:      getAttr(entry, ldap.AttrPostalCode),
+		Country:         getAttr(entry, ldap.AttrCountry),
+		Phone:           getAttr(entry, ldap.AttrTelephone),
+		Mobile:          getAttr(entry, ldap.AttrMobile),
 		Enabled:         enabled,
 		LockedOut:       lockedOut,
 		PasswordExpired: pwdExpired,
+		AccountExpires:  parseADTimestamp(getAttr(entry, ldap.AttrAccountExpires)),
+		PwdLastSet:      parseADTimestamp(getAttr(entry, ldap.AttrPwdLastSet)),
+		BadPwdCount:     badPwd,
 		LastLogon:       parseADTimestamp(getAttr(entry, ldap.AttrLastLogon)),
 		WhenCreated:     parseADTimestamp(getAttr(entry, ldap.AttrWhenCreated)),
 		WhenChanged:     parseADTimestamp(getAttr(entry, ldap.AttrWhenChanged)),

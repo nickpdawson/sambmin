@@ -152,6 +152,13 @@ type updateUserRequest struct {
 	Company     string `json:"company"`
 	Description string `json:"description"`
 	Phone       string `json:"phone"`
+	Mobile      string `json:"mobile"`
+	Office      string `json:"office"`
+	Street      string `json:"streetAddress"`
+	City        string `json:"city"`
+	State       string `json:"state"`
+	PostalCode  string `json:"postalCode"`
+	Country     string `json:"country"`
 }
 
 func handleUpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -205,6 +212,27 @@ func handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Phone != "" {
 		attrs["telephoneNumber"] = req.Phone
+	}
+	if req.Mobile != "" {
+		attrs["mobile"] = req.Mobile
+	}
+	if req.Office != "" {
+		attrs["physicalDeliveryOfficeName"] = req.Office
+	}
+	if req.Street != "" {
+		attrs["streetAddress"] = req.Street
+	}
+	if req.City != "" {
+		attrs["l"] = req.City
+	}
+	if req.State != "" {
+		attrs["st"] = req.State
+	}
+	if req.PostalCode != "" {
+		attrs["postalCode"] = req.PostalCode
+	}
+	if req.Country != "" {
+		attrs["co"] = req.Country
 	}
 
 	if len(attrs) == 0 {

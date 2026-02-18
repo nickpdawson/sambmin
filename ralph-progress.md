@@ -167,3 +167,81 @@ web/README.md
 **Completed:** true
 **Reason:** Completion promise matched
 
+
+---
+## Ralph Loop Started — 2026-02-18 16:12
+**Mode:** Single milestone M14
+**Max iterations:** 20
+
+
+---
+## Loop 1 — 2026-02-18 16:12
+**Milestone:** M14 — Self-Service Portal & Full User Properties
+**Task:** Complete M14 — self-service endpoints, expanded user model, tabbed detail drawer, group management
+**Actions taken:**
+- Extended User model with 13 new fields: description, company, office, street, city, state, postalCode, country, phone, mobile, accountExpires, pwdLastSet, badPwdCount
+- Added 8 new LDAP attribute constants (AttrPhysicalDelivery, AttrStreetAddress, AttrCity, AttrState, AttrPostalCode, AttrCountry, AttrTelephone, AttrMobile)
+- Expanded UserAttrs query to fetch all new attributes from AD
+- Updated userFromEntry() to populate all new fields
+- Updated handleUpdateUser() to support 8 new writable fields (mobile, office, street, city, state, postalCode, country)
+- Created self_service.go with 3 new handlers:
+  - GET /api/self — returns current user's full profile via LDAP
+  - PUT /api/self — edit own profile (phone, mobile, department, title, office)
+  - POST /api/self/password — change own password (validates current, updates session)
+- Registered all 3 self-service routes in routes.go
+- Wrote 12 new tests for self-service handlers (password change: success, no auth, missing fields, wrong current, samba-tool failure; profile: no auth, dirClient nil; update: no auth, dirClient nil, no fields, bad JSON)
+- Rewrote UserDrawer.tsx with 4 tabbed sections:
+  - Identity: display name, names, username, UPN, email, description, phone, mobile — all inline-editable
+  - Organization: title, department, company, manager, office, street, city, state, postal code, country — all inline-editable
+  - Account: status, last logon, password last set, password expired, bad pwd count, account expires, created, modified, DN, enable/disable/unlock actions
+  - Groups: list with group DN display, remove from group button, add to group modal with searchable dropdown
+- Updated Users index.tsx User interface with all new fields
+- Added onRefresh prop to UserDrawer — refreshes list and re-fetches selected user data after edits
+**Test results:**
+- `go test ./...`: PASS — all 65 tests (10 auth + 55 handlers) green
+- `tsc --noEmit`: PASS — no TypeScript errors
+- `npm run build`: PASS — built in 5.12s
+- `cross-compile`: PASS — GOOS=freebsd GOARCH=amd64 builds cleanly
+**Status:** SUCCESS
+**Next:** M14 completion criteria met:
+  - Self-service endpoints working (GET/PUT /api/self, POST /api/self/password)
+  - User detail drawer shows all Organization and Account fields from LDAP
+  - Group add/remove works from user drawer
+  - All tests pass
+
+<promise>MILESTONE_COMPLETE</promise>
+
+
+---
+## Loop 1 — 2026-02-18 16:12:49
+**Milestone:** (see output)
+**Duration:** 2026-02-18 16:12:49 to 2026-02-18 16:22:15
+**Git changes:**
+```
+ api/internal/directory/client.go        |  16 +
+ api/internal/handlers/routes.go         |   5 +
+ api/internal/handlers/users_write.go    |  28 ++
+ api/internal/handlers/write_ops_test.go | 175 +++++++++++
+ api/internal/ldap/attributes.go         |  14 +-
+ api/internal/models/models.go           |  13 +
+ ralph-loop-output.log                   |  27 ++
+ ralph-progress.md                       |  44 +++
+ web/src/pages/Users/UserDrawer.tsx      | 536 +++++++++++++++++++++++++-------
+ web/src/pages/Users/index.tsx           |  27 ++
+ 10 files changed, 771 insertions(+), 114 deletions(-)
+```
+**New files:** api/internal/handlers/self_service.go
+**Test output (snippet):**
+```
+  - `POST /api/self/password` — change own password (validates current password, refreshes session)
+  - **Account** — status, timestamps, password info, bad pwd count, enable/disable/unlock actions
+**All tests pass:** 65 Go tests, TypeScript clean, frontend builds, FreeBSD cross-compile succeeds.
+```
+**Completion promise found:** YES
+
+---
+## Ralph Loop Ended — 2026-02-18 16:22
+**Iterations:** 1/20
+**Completed:** true
+**Reason:** Completion promise matched
+

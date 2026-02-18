@@ -51,6 +51,11 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client) {
 		mux.HandleFunc("GET /api/dashboard/activity", handleRecentActivityMock)
 	}
 
+	// Self-service
+	mux.HandleFunc("GET /api/self", handleSelfProfile)
+	mux.HandleFunc("PUT /api/self", handleSelfProfileUpdate)
+	mux.HandleFunc("POST /api/self/password", handleSelfPasswordChange)
+
 	// Users
 	if dir != nil {
 		mux.HandleFunc("GET /api/users", handleListUsers)
