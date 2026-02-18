@@ -36,13 +36,18 @@ interface User {
 type TabFilter = 'all' | 'active' | 'disabled' | 'locked';
 
 function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
+  if (!iso) return 'Never';
+  const d = new Date(iso);
+  if (d.getFullYear() < 1971) return 'Never'; // epoch zero / AD "never logged in"
+  const diff = Date.now() - d.getTime();
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return 'just now';
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 365) return `${days}d ago`;
+  return `${Math.floor(days / 365)}y ago`;
 }
 
 export default function Users() {
@@ -57,66 +62,6 @@ export default function Users() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [resetTarget, setResetTarget] = useState<User | null>(null);
   const [resetForm] = Form.useForm();
-
-  const handleUserAction = useCallback(async (action: string, record: User) => {
-    const dn = encodeURIComponent(record.dn);
-    try {
-      switch (action) {
-        case 'enable':
-          await api.post(`/users/${dn}/enable`);
-          notification.success({ message: `${record.displayName || record.samAccountName} enabled` });
-          break;
-        case 'disable':
-          await api.post(`/users/${dn}/disable`);
-          notification.success({ message: `${record.displayName || record.samAccountName} disabled` });
-          break;
-        case 'unlock':
-          await api.post(`/users/${dn}/unlock`);
-          notification.success({ message: `${record.displayName || record.samAccountName} unlocked` });
-          break;
-        case 'delete':
-          Modal.confirm({
-            title: 'Delete User',
-            icon: <ExclamationCircleOutlined />,
-            content: `Are you sure you want to delete ${record.displayName || record.samAccountName}? This cannot be undone.`,
-            okText: 'Delete',
-            okButtonProps: { danger: true },
-            onOk: async () => {
-              await api.delete(`/users/${dn}`);
-              notification.success({ message: `${record.displayName || record.samAccountName} deleted` });
-              loadUsers();
-            },
-          });
-          return; // don't reload yet — modal handles it
-        case 'reset':
-          setResetTarget(record);
-          return;
-      }
-      loadUsers();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Operation failed';
-      notification.error({ message: `Failed to ${action} user`, description: msg });
-    }
-  }, []);
-
-  const handleResetPassword = useCallback(async () => {
-    if (!resetTarget) return;
-    try {
-      const values = await resetForm.validateFields();
-      const dn = encodeURIComponent(resetTarget.dn);
-      await api.post(`/users/${dn}/reset-password`, {
-        password: values.password,
-        mustChangeAtNextLogin: values.mustChange ?? true,
-      });
-      notification.success({ message: `Password reset for ${resetTarget.displayName || resetTarget.samAccountName}` });
-      resetForm.resetFields();
-      setResetTarget(null);
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message) {
-        notification.error({ message: 'Password reset failed', description: err.message });
-      }
-    }
-  }, [resetTarget, resetForm]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -133,6 +78,72 @@ export default function Users() {
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  const handleUserAction = useCallback(async (action: string, record: User) => {
+    const dn = encodeURIComponent(record.dn);
+    const name = record.displayName || record.samAccountName;
+
+    if (action === 'delete') {
+      Modal.confirm({
+        title: 'Delete User',
+        icon: <ExclamationCircleOutlined />,
+        content: `Are you sure you want to delete ${name}? This cannot be undone.`,
+        okText: 'Delete',
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          await api.delete(`/users/${dn}`);
+          notification.success({ message: `${name} deleted` });
+          loadUsers();
+        },
+      });
+      return;
+    }
+
+    if (action === 'reset') {
+      setResetTarget(record);
+      return;
+    }
+
+    try {
+      switch (action) {
+        case 'enable':
+          await api.post(`/users/${dn}/enable`);
+          notification.success({ message: `${name} enabled` });
+          break;
+        case 'disable':
+          await api.post(`/users/${dn}/disable`);
+          notification.success({ message: `${name} disabled` });
+          break;
+        case 'unlock':
+          await api.post(`/users/${dn}/unlock`);
+          notification.success({ message: `${name} unlocked` });
+          break;
+      }
+      loadUsers();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Operation failed';
+      Modal.error({ title: `Failed to ${action} user`, content: msg });
+    }
+  }, [loadUsers]);
+
+  const handleResetPassword = useCallback(async () => {
+    if (!resetTarget) return;
+    try {
+      const values = await resetForm.validateFields();
+      const dn = encodeURIComponent(resetTarget.dn);
+      await api.post(`/users/${dn}/reset-password`, {
+        password: values.password,
+        mustChangeAtNextLogin: values.mustChange ?? true,
+      });
+      notification.success({ message: `Password reset for ${resetTarget.displayName || resetTarget.samAccountName}` });
+      resetForm.resetFields();
+      setResetTarget(null);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message) {
+        Modal.error({ title: 'Password reset failed', content: err.message });
+      }
+    }
+  }, [resetTarget, resetForm]);
 
   const filteredUsers = users.filter((u) => {
     if (tabFilter === 'active' && (!u.enabled || u.lockedOut)) return false;
