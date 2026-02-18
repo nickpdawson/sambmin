@@ -242,10 +242,9 @@ func handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract sAMAccountName from DN for samba-tool
-	username := cnFromDN(dn)
-	if username == "" {
-		respondError(w, http.StatusBadRequest, "could not extract username from DN")
+	username, err := samAccountNameFromDN(r.Context(), dn)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -273,9 +272,9 @@ func handleResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dn := r.PathValue("dn")
-	username := cnFromDN(dn)
-	if username == "" {
-		respondError(w, http.StatusBadRequest, "could not extract username from DN")
+	username, err := samAccountNameFromDN(r.Context(), dn)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -314,9 +313,9 @@ func handleEnableUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dn := r.PathValue("dn")
-	username := cnFromDN(dn)
-	if username == "" {
-		respondError(w, http.StatusBadRequest, "could not extract username from DN")
+	username, err := samAccountNameFromDN(r.Context(), dn)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -337,9 +336,9 @@ func handleDisableUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dn := r.PathValue("dn")
-	username := cnFromDN(dn)
-	if username == "" {
-		respondError(w, http.StatusBadRequest, "could not extract username from DN")
+	username, err := samAccountNameFromDN(r.Context(), dn)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -360,9 +359,9 @@ func handleUnlockUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dn := r.PathValue("dn")
-	username := cnFromDN(dn)
-	if username == "" {
-		respondError(w, http.StatusBadRequest, "could not extract username from DN")
+	username, err := samAccountNameFromDN(r.Context(), dn)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -387,4 +386,25 @@ func cnFromDN(dn string) string {
 		}
 	}
 	return ""
+}
+
+// samAccountNameFromDN looks up the sAMAccountName for a DN via LDAP.
+// Falls back to extracting CN from DN if LDAP is unavailable.
+func samAccountNameFromDN(ctx context.Context, dn string) (string, error) {
+	if dirClient != nil {
+		sam, err := dirClient.GetSamAccountName(ctx, dn)
+		if err == nil && sam != "" {
+			return sam, nil
+		}
+		slog.Warn("LDAP lookup for sAMAccountName failed, falling back to CN", "dn", dn, "error", err)
+	}
+	// Fallback: extract CN (works when CN == sAMAccountName)
+	parts := strings.Split(dn, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(strings.ToUpper(part), "CN=") {
+			return part[3:], nil
+		}
+	}
+	return "", fmt.Errorf("could not determine username from DN: %s", dn)
 }

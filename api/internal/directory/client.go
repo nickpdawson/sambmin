@@ -56,6 +56,33 @@ func (c *Client) Health(ctx context.Context) error {
 	return nil
 }
 
+// GetSamAccountName looks up the sAMAccountName for a given DN.
+func (c *Client) GetSamAccountName(ctx context.Context, dn string) (string, error) {
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer c.pool.Put(conn)
+
+	sr := goldap.NewSearchRequest(
+		dn,
+		goldap.ScopeBaseObject,
+		goldap.NeverDerefAliases,
+		0, 5, false,
+		"(objectClass=*)",
+		[]string{"sAMAccountName"},
+		nil,
+	)
+	result, err := conn.Search(sr)
+	if err != nil {
+		return "", fmt.Errorf("lookup sAMAccountName for %s: %w", dn, err)
+	}
+	if len(result.Entries) == 0 {
+		return "", fmt.Errorf("no object found at DN: %s", dn)
+	}
+	return result.Entries[0].GetAttributeValue("sAMAccountName"), nil
+}
+
 // Metrics returns aggregate counts for the dashboard.
 func (c *Client) Metrics(ctx context.Context) (*models.DashboardMetrics, error) {
 	conn, err := c.pool.Get(ctx)
