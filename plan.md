@@ -580,9 +580,7 @@ sambmin/
 - [x] DC health fix: store resolved SAMBMIN_BIND_PW back into config for handler access
 - [x] 4/5 DCs healthy (yellowstone genuinely unreachable)
 
-### In Progress
-
-**M10: Authentication System**
+**M10: Authentication System** (2026-02-17)
 - [x] Session store with AES-256-GCM encrypted password storage (`api/internal/auth/session.go`)
 - [x] LDAP bind authenticator supporting sAMAccountName, UPN, DN formats (`api/internal/auth/ldap_bind.go`)
 - [x] RequireAuth middleware (`api/internal/auth/middleware.go`)
@@ -594,31 +592,60 @@ sambmin/
 - [x] Header shows username + logout button
 - [x] API client auto-redirects to `/login` on 401
 - [x] Auth tests: 10/10 pass (session CRUD, password encrypt/decrypt, expiry, DN conversion)
-- [ ] Cross-compile and deploy to Bridger
-- [ ] End-to-end test: login with real AD credentials
+- [x] Deployed to Bridger, verified login with administrator and ndawson accounts
+
+**M11: Write Operations — Backend** (2026-02-17)
+- [x] `runSambaTool()` helper: executes samba-tool with user session credentials via `-U user%pass -H ldap://localhost`
+- [x] `requireSession()` helper: extracts session from request, returns 401 if missing
+- [x] User CRUD handlers: create, update (LDAP modify), delete, reset password, enable, disable, unlock
+- [x] Group CRUD handlers: create, update, delete, add/remove members
+- [x] Computer handler: delete (LDAP delete as user)
+- [x] OU handlers: create, delete
+- [x] DNS handlers: zone create/delete, record create/update/delete
+- [x] `dirClient.ModifyAttributes()` and `dirClient.DeleteObject()` for LDAP write operations
+- [x] Handler tests: 11/11 pass
+- [x] FreeBSD rc.d script fix: `/usr/bin/env` to pass env vars through `daemon -u`
+- [x] Cleaned error messages from samba-tool (strip warnings, extract meaningful error line)
+
+**M12: Write Operations — Frontend Wiring** (2026-02-17)
+- [x] Users page: enable/disable/unlock/delete actions call real API (with confirmation modals)
+- [x] Users page: bulk operations (enable/disable/delete) wired for multi-select
+- [x] Users page: reset password modal with real API call
+- [x] CreateUserDrawer: POST /api/users with real form data
+- [x] CreateUserDrawer: fetch live OUs from /api/ous for dropdown
+- [x] CreateUserDrawer: fetch live groups from /api/groups for dropdown
+- [x] DNS CreateRecordDrawer: create/edit records via real API
+- [x] DNS delete confirmation: calls real DELETE endpoint with type/value query params
+- [x] OUs page: create OU modal with name, description, parent OU
+- [x] OUs page: delete OU with confirmation modal (warns about children)
+- [x] Error dialogs use Modal.error for visibility (not corner notifications)
+
+### In Progress
+
+**M13: Write Operations — Debugging & Testing**
+- [x] Fixed `--server=localhost` → `-H ldap://localhost` for samba-tool LDAP connection
+- [x] Fixed Permission denied on sam.ldb (was trying local file access, now uses remote LDAP)
+- [ ] Verify user create works end-to-end with `-H ldap://localhost`
+- [ ] Verify enable/disable/unlock/delete work end-to-end
+- [ ] Verify DNS record create/update/delete work end-to-end
+- [ ] Verify OU create/delete work end-to-end
+- [ ] Verify group create/delete/member management works
 
 ### Next Up
 
-**M11: Write Operations**
-- [ ] Password reset via samba-tool (most requested admin action)
-- [ ] Enable/disable/unlock accounts via LDAP modify
-- [ ] User attribute editing via LDAP modify (department, title, description)
-- [ ] Group membership add/remove
-- [ ] User creation via samba-tool
-- [ ] DNS record CRUD via samba-tool
-- [ ] Audit logging for all mutations
-
-**M12: Replication & Infrastructure**
+**M14: Replication & Infrastructure**
 - [ ] D3.js replication topology visualization
 - [ ] `samba-tool drs showrepl` integration for real replication status
 - [ ] Sites & Services management
 - [ ] FSMO role display and transfer workflow
 
-**M13: Polish & Hardening**
+**M15: Polish & Hardening**
 - [ ] PostgreSQL integration for audit log, session storage, app config
 - [ ] Saved searches / bookmarks
 - [ ] Customizable dashboard layout
 - [ ] CSV/JSON export from all list views
+- [ ] User attribute editing in detail drawer (inline edit)
+- [ ] Group membership visualization
 
 ---
 

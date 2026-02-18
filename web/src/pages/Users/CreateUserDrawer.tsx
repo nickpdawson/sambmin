@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Drawer, Form, Input, Select, Switch, Button, Space, Collapse, Typography,
-  notification,
+  notification, Modal,
 } from 'antd';
 import { UserOutlined, LockOutlined, ReloadOutlined } from '@ant-design/icons';
+import { api } from '../../api/client';
 
 const { Text } = Typography;
 
@@ -35,9 +36,28 @@ function generatePassword(length = 16): string {
   return password.split('').sort(() => Math.random() - 0.5).join('');
 }
 
+interface OUOption { dn: string; name: string }
+interface GroupOption { dn: string; name: string; samAccountName: string }
+
 export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUserDrawerProps) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [ouOptions, setOUOptions] = useState<{ value: string; label: string }[]>([]);
+  const [groupOptions, setGroupOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    api.get<{ ous: OUOption[] }>('/ous')
+      .then((data) => setOUOptions(
+        (data.ous || []).map((ou) => ({ value: ou.dn, label: ou.name }))
+      ))
+      .catch(() => {});
+    api.get<{ groups: GroupOption[] }>('/groups')
+      .then((data) => setGroupOptions(
+        (data.groups || []).map((g) => ({ value: g.samAccountName || g.name, label: g.name }))
+      ))
+      .catch(() => {});
+  }, [open]);
 
   const handleGenerate = () => {
     const pw = generatePassword();
@@ -61,15 +81,27 @@ export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUse
 
   const handleSubmit = async () => {
     try {
-      await form.validateFields();
+      const values = await form.validateFields();
       setLoading(true);
-      // TODO: POST /api/users with form values
-      await new Promise((r) => setTimeout(r, 800)); // simulate
-      notification.success({ message: 'User created successfully', description: form.getFieldValue('displayName') });
+      await api.post('/users', {
+        username: values.samAccountName,
+        password: values.password,
+        givenName: values.givenName,
+        surname: values.surname,
+        mail: values.mail,
+        department: values.department,
+        title: values.title,
+        ou: values.ou,
+        mustChangePassword: values.mustChangePassword ?? true,
+      });
+      notification.success({ message: 'User created successfully', description: values.displayName || values.samAccountName });
       form.resetFields();
       onSuccess();
-    } catch {
-      // Validation failed
+    } catch (err: unknown) {
+      // Show validation errors inline (Ant Design handles that), only show API errors
+      if (err && typeof err === 'object' && 'errorFields' in err) return; // form validation — inline errors shown
+      const msg = err instanceof Error ? err.message : 'Failed to create user';
+      Modal.error({ title: 'Create user failed', content: msg });
     } finally {
       setLoading(false);
     }
@@ -213,11 +245,14 @@ export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUse
                     <Input placeholder="Software Engineer" />
                   </Form.Item>
                   <Form.Item name="ou" label="Organizational Unit">
-                    <Select placeholder="Select OU..." options={[
-                      { value: 'OU=Users,DC=dzsec,DC=net', label: 'Users' },
-                      { value: 'OU=Admins,DC=dzsec,DC=net', label: 'Admins' },
-                      { value: 'OU=Contractors,DC=dzsec,DC=net', label: 'Contractors' },
-                    ]} />
+                    <Select
+                      placeholder="Select OU..."
+                      options={ouOptions}
+                      showSearch
+                      filterOption={(input, option) =>
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    />
                   </Form.Item>
                 </>
               ),
@@ -230,14 +265,11 @@ export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUse
                   <Select
                     mode="multiple"
                     placeholder="Search and add groups..."
-                    options={[
-                      { value: 'VPN-Users', label: 'VPN-Users' },
-                      { value: 'Engineering', label: 'Engineering' },
-                      { value: 'Marketing', label: 'Marketing' },
-                      { value: 'Finance', label: 'Finance' },
-                      { value: 'IT-Ops', label: 'IT-Ops' },
-                      { value: 'HR', label: 'HR' },
-                    ]}
+                    options={groupOptions}
+                    showSearch
+                    filterOption={(input, option) =>
+                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
                   />
                 </Form.Item>
               ),

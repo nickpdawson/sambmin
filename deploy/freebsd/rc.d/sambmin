@@ -59,6 +59,7 @@ sambmin_start()
     install -o ${sambmin_user} -g ${sambmin_group} -m 0644 /dev/null ${sambmin_logfile} 2>/dev/null
 
     /usr/sbin/daemon -f -p ${pidfile} -u ${sambmin_user} \
+        /usr/bin/env SAMBMIN_BIND_PW="${SAMBMIN_BIND_PW}" SAMBMIN_CONFIG="${sambmin_config}" \
         ${command} >> ${sambmin_logfile} 2>&1
 
     sleep 1

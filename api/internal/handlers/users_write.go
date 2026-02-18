@@ -31,8 +31,8 @@ func runSambaTool(ctx context.Context, sess *auth.Session, args ...string) (stri
 		return "", fmt.Errorf("get session credentials: %w", err)
 	}
 
-	// Append credentials
-	args = append(args, "-U", fmt.Sprintf("%s%%%s", sess.Username, password))
+	// Force remote LDAP connection (avoids local LDB permission issues) and append credentials
+	args = append(args, "-H", "ldap://localhost", "-U", fmt.Sprintf("%s%%%s", sess.Username, password))
 
 	cmd := exec.CommandContext(ctx, sambaTool, args...)
 	var stdout, stderr bytes.Buffer
@@ -46,6 +46,15 @@ func runSambaTool(ctx context.Context, sess *auth.Session, args ...string) (stri
 		errMsg := strings.TrimSpace(stderr.String())
 		if errMsg == "" {
 			errMsg = err.Error()
+		}
+		// Extract the meaningful error line (last non-empty line, skip warnings)
+		lines := strings.Split(errMsg, "\n")
+		for i := len(lines) - 1; i >= 0; i-- {
+			line := strings.TrimSpace(lines[i])
+			if line != "" && !strings.HasPrefix(line, "WARNING:") && !strings.HasPrefix(line, "Usage:") {
+				errMsg = line
+				break
+			}
 		}
 		return "", fmt.Errorf("%s", errMsg)
 	}
