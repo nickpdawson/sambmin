@@ -620,13 +620,17 @@ sambmin/
 - [x] OUs page: delete OU with confirmation modal (warns about children)
 - [x] Error dialogs use Modal.error for visibility (not corner notifications)
 
-### In Progress
-
-**M13: Write Operations — Debugging & Testing**
+**M13: Write Operations — Debugging & Testing** (2026-02-18)
 - [x] Fixed `--server=localhost` → `-H ldap://localhost` for samba-tool LDAP connection
 - [x] Fixed Permission denied on sam.ldb (was trying local file access, now uses remote LDAP)
-- [ ] Verify user create works end-to-end with `-H ldap://localhost`
-- [ ] Verify enable/disable/unlock/delete work end-to-end
+- [x] Fixed CN vs sAMAccountName: added LDAP lookup via `GetSamAccountName()` for user actions
+- [x] Fixed delete confirmation modal not rendering (moved Modal.confirm outside try/catch, fixed useCallback deps)
+- [x] Fixed `timeAgo()` showing "739664d ago" for epoch zero — now shows "Never" for users who haven't logged in
+- [x] Fixed startup in mock mode: SAMBMIN_CONFIG env var must be set for process to find config.yaml
+- [x] Verified: user create, enable, disable work end-to-end
+- [x] Verified: login/logout works via LDAP bind against Samba DC
+- [x] Error dialogs switched to Modal.error (unmissable vs corner notifications)
+- [ ] Verify user delete works end-to-end
 - [ ] Verify DNS record create/update/delete work end-to-end
 - [ ] Verify OU create/delete work end-to-end
 - [ ] Verify group create/delete/member management works
