@@ -24,12 +24,28 @@ interface User {
   sn: string;
   mail: string;
   userPrincipalName: string;
+  description: string;
   department: string;
   title: string;
+  company: string;
+  manager: string;
+  office: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+  mobile: string;
   enabled: boolean;
   lockedOut: boolean;
+  passwordExpired: boolean;
+  accountExpires: string;
+  pwdLastSet: string;
+  badPwdCount: number;
   lastLogon: string;
   whenCreated: string;
+  whenChanged: string;
   memberOf: string[];
 }
 
@@ -371,6 +387,17 @@ export default function Users() {
         user={selectedUser}
         open={drawerOpen}
         onClose={() => { setDrawerOpen(false); setSelectedUser(null); }}
+        onRefresh={async () => {
+          await loadUsers();
+          // Refresh the selected user with fresh data
+          if (selectedUser) {
+            try {
+              const dn = encodeURIComponent(selectedUser.dn);
+              const fresh = await api.get<User>(`/users/${dn}`);
+              setSelectedUser(fresh);
+            } catch { /* keep stale data */ }
+          }
+        }}
       />
 
       <CreateUserDrawer

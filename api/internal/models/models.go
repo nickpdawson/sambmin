@@ -11,12 +11,25 @@ type User struct {
 	Surname         string    `json:"sn"`
 	Email           string    `json:"mail"`
 	UPN             string    `json:"userPrincipalName"`
+	Description     string    `json:"description"`
 	Department      string    `json:"department"`
 	Title           string    `json:"title"`
+	Company         string    `json:"company"`
 	Manager         string    `json:"manager"`
+	Office          string    `json:"office"`
+	Street          string    `json:"streetAddress"`
+	City            string    `json:"city"`
+	State           string    `json:"state"`
+	PostalCode      string    `json:"postalCode"`
+	Country         string    `json:"country"`
+	Phone           string    `json:"phone"`
+	Mobile          string    `json:"mobile"`
 	Enabled         bool      `json:"enabled"`
 	LockedOut       bool      `json:"lockedOut"`
 	PasswordExpired bool      `json:"passwordExpired"`
+	AccountExpires  time.Time `json:"accountExpires"`
+	PwdLastSet      time.Time `json:"pwdLastSet"`
+	BadPwdCount     int       `json:"badPwdCount"`
 	LastLogon       time.Time `json:"lastLogon"`
 	WhenCreated     time.Time `json:"whenCreated"`
 	WhenChanged     time.Time `json:"whenChanged"`
