@@ -226,16 +226,25 @@ export default function DNS() {
     setDrawerOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    if (!deleteTarget) return;
-    // TODO: DELETE /api/dns/zones/:zone/records/:id
-    notification.success({
-      message: 'Record deleted',
-      description: `${deleteTarget.type} ${deleteTarget.name} removed from ${selectedZone}`,
-    });
-    setRecords((prev) => prev.filter((r) =>
-      !(r.name === deleteTarget.name && r.type === deleteTarget.type && r.value === deleteTarget.value)
-    ));
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget || !selectedZone) return;
+    try {
+      const zoneEnc = encodeURIComponent(selectedZone);
+      const nameEnc = encodeURIComponent(deleteTarget.name);
+      const typeEnc = encodeURIComponent(deleteTarget.type);
+      const valueEnc = encodeURIComponent(deleteTarget.value);
+      await api.delete(`/dns/zones/${zoneEnc}/records/${nameEnc}?type=${typeEnc}&value=${valueEnc}`);
+      notification.success({
+        message: 'Record deleted',
+        description: `${deleteTarget.type} ${deleteTarget.name} removed from ${selectedZone}`,
+      });
+      // Re-fetch records
+      const data = await api.get<{ records: DNSRecord[] }>(`/dns/zones/${zoneEnc}/records`);
+      setRecords(data.records);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Delete failed';
+      notification.error({ message: 'Delete failed', description: msg });
+    }
     setDeleteTarget(null);
   };
 

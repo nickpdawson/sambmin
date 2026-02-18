@@ -2,11 +2,13 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   Button, Input, Space, Typography, Drawer, Descriptions, Divider,
   Tooltip, Dropdown, Segmented, Tree, notification, Tag, Badge,
+  Modal, Form, Select,
 } from 'antd';
 import {
   ApartmentOutlined, FolderOutlined, CopyOutlined,
   PlusOutlined, ReloadOutlined, SearchOutlined, MoreOutlined,
   DeleteOutlined, EditOutlined, FolderOpenOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
@@ -99,6 +101,53 @@ export default function OUs() {
   const [search, setSearch] = useState('');
   const [selectedOU, setSelectedOU] = useState<OU | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm] = Form.useForm();
+  const [createLoading, setCreateLoading] = useState(false);
+
+  const handleCreateOU = useCallback(async () => {
+    try {
+      const values = await createForm.validateFields();
+      setCreateLoading(true);
+      await api.post('/ous', {
+        name: values.name,
+        description: values.description,
+        parentDn: values.parentDn,
+      });
+      notification.success({ message: `OU "${values.name}" created` });
+      createForm.resetFields();
+      setCreateOpen(false);
+      refresh();
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message) {
+        notification.error({ message: 'Create OU failed', description: err.message });
+      }
+    } finally {
+      setCreateLoading(false);
+    }
+  }, [createForm]);
+
+  const handleDeleteOU = useCallback(async (ou: OU) => {
+    Modal.confirm({
+      title: 'Delete Organizational Unit',
+      icon: <ExclamationCircleOutlined />,
+      content: `Delete OU "${ou.name}"? This cannot be undone.${ou.childCount > 0 ? ` Warning: this OU has ${ou.childCount} child objects.` : ''}`,
+      okText: 'Delete',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await api.delete(`/ous/${encodeURIComponent(ou.dn)}`);
+          notification.success({ message: `OU "${ou.name}" deleted` });
+          setDrawerOpen(false);
+          setSelectedOU(null);
+          refresh();
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Delete failed';
+          notification.error({ message: 'Delete OU failed', description: msg });
+        }
+      },
+    });
+  }, []);
 
   /* ---- data loading ---- */
   const loadList = useCallback(async () => {
@@ -258,6 +307,8 @@ export default function OUs() {
             onClick: ({ key }) => {
               if (key === 'view') {
                 openDetail(record);
+              } else if (key === 'delete') {
+                handleDeleteOU(record);
               } else {
                 notification.info({ message: `${key} — not yet implemented` });
               }
@@ -327,7 +378,7 @@ export default function OUs() {
               key="create"
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => notification.info({ message: 'New OU — not yet implemented' })}
+              onClick={() => setCreateOpen(true)}
             >
               New OU
             </Button>,
@@ -352,7 +403,7 @@ export default function OUs() {
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
-                onClick={() => notification.info({ message: 'New OU — not yet implemented' })}
+                onClick={() => setCreateOpen(true)}
               >
                 New OU
               </Button>
@@ -478,7 +529,7 @@ export default function OUs() {
                 danger
                 type="primary"
                 icon={<DeleteOutlined />}
-                onClick={() => notification.info({ message: 'Delete OU — not yet implemented' })}
+                onClick={() => selectedOU && handleDeleteOU(selectedOU)}
               >
                 Delete Organizational Unit
               </Button>
@@ -486,6 +537,40 @@ export default function OUs() {
           </>
         )}
       </Drawer>
+
+      {/* Create OU Modal */}
+      <Modal
+        title="Create Organizational Unit"
+        open={createOpen}
+        onCancel={() => { createForm.resetFields(); setCreateOpen(false); }}
+        onOk={handleCreateOU}
+        confirmLoading={createLoading}
+        okText="Create OU"
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="OU Name"
+            rules={[{ required: true, message: 'OU name is required' }]}
+          >
+            <Input placeholder="e.g. Engineering" />
+          </Form.Item>
+          <Form.Item name="description" label="Description">
+            <Input placeholder="Optional description" />
+          </Form.Item>
+          <Form.Item name="parentDn" label="Parent OU">
+            <Select
+              placeholder="Root (Base DN)"
+              allowClear
+              options={ous.map((ou) => ({ value: ou.dn, label: ou.name }))}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Space>
   );
 }

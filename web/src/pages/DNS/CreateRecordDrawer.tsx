@@ -4,6 +4,7 @@ import {
   notification,
 } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
+import { api } from '../../api/client';
 
 const { Text } = Typography;
 
@@ -143,20 +144,68 @@ export default function CreateRecordDrawer({
     return base;
   }, [editRecord]);
 
+  /** Map form values to the API request body shape */
+  function buildRecordPayload(values: Record<string, unknown>) {
+    const recType = values.recordType as string;
+    let value = '';
+    switch (recType) {
+      case 'A':
+      case 'AAAA':
+        value = values.ipAddress as string;
+        break;
+      case 'CNAME':
+        value = values.target as string;
+        break;
+      case 'MX':
+        value = `${values.mailServer as string} ${values.priority ?? 10}`;
+        break;
+      case 'SRV':
+        value = `${values.target as string} ${values.priority ?? 0} ${values.weight ?? 100} ${values.port ?? 0}`;
+        break;
+      case 'TXT':
+        value = values.txtValue as string;
+        break;
+      case 'NS':
+        value = values.nameserver as string;
+        break;
+      case 'PTR':
+        value = values.hostname as string;
+        break;
+    }
+    return {
+      name: (values.name as string) || '@',
+      type: recType,
+      value,
+      ttl: values.ttl as number,
+    };
+  }
+
   const handleSubmit = async () => {
     try {
-      await form.validateFields();
+      const values = await form.validateFields();
       setLoading(true);
-      // TODO: POST /api/dns/zones/:zone/records or PUT for edit
-      await new Promise((r) => setTimeout(r, 600)); // simulate
+      const zoneEnc = encodeURIComponent(zoneName);
+
+      if (isEdit && editRecord) {
+        const nameEnc = encodeURIComponent(editRecord.name);
+        await api.put(`/dns/zones/${zoneEnc}/records/${nameEnc}`, {
+          type: editRecord.type,
+          oldValue: editRecord.value,
+          newValue: buildRecordPayload(values).value,
+        });
+      } else {
+        await api.post(`/dns/zones/${zoneEnc}/records`, buildRecordPayload(values));
+      }
+
       notification.success({
         message: isEdit ? 'Record updated' : 'Record created',
-        description: `${form.getFieldValue('recordType')} record for ${form.getFieldValue('name') || '@'} in ${zoneName}`,
+        description: `${values.recordType} record for ${values.name || '@'} in ${zoneName}`,
       });
       form.resetFields();
       onSuccess();
-    } catch {
-      // Validation failed
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Operation failed';
+      notification.error({ message: isEdit ? 'Update failed' : 'Create failed', description: msg });
     } finally {
       setLoading(false);
     }

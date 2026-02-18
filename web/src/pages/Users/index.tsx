@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Button, Input, Space, Tag, Tabs, Tooltip, Dropdown, Badge, Typography,
-  notification,
+  notification, Modal, Form,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined,
   MoreOutlined, LockOutlined, StopOutlined,
-  CheckCircleOutlined, SearchOutlined,
+  CheckCircleOutlined, SearchOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
@@ -55,6 +55,68 @@ export default function Users() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [resetForm] = Form.useForm();
+
+  const handleUserAction = useCallback(async (action: string, record: User) => {
+    const dn = encodeURIComponent(record.dn);
+    try {
+      switch (action) {
+        case 'enable':
+          await api.post(`/users/${dn}/enable`);
+          notification.success({ message: `${record.displayName || record.samAccountName} enabled` });
+          break;
+        case 'disable':
+          await api.post(`/users/${dn}/disable`);
+          notification.success({ message: `${record.displayName || record.samAccountName} disabled` });
+          break;
+        case 'unlock':
+          await api.post(`/users/${dn}/unlock`);
+          notification.success({ message: `${record.displayName || record.samAccountName} unlocked` });
+          break;
+        case 'delete':
+          Modal.confirm({
+            title: 'Delete User',
+            icon: <ExclamationCircleOutlined />,
+            content: `Are you sure you want to delete ${record.displayName || record.samAccountName}? This cannot be undone.`,
+            okText: 'Delete',
+            okButtonProps: { danger: true },
+            onOk: async () => {
+              await api.delete(`/users/${dn}`);
+              notification.success({ message: `${record.displayName || record.samAccountName} deleted` });
+              loadUsers();
+            },
+          });
+          return; // don't reload yet — modal handles it
+        case 'reset':
+          setResetTarget(record);
+          return;
+      }
+      loadUsers();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Operation failed';
+      notification.error({ message: `Failed to ${action} user`, description: msg });
+    }
+  }, []);
+
+  const handleResetPassword = useCallback(async () => {
+    if (!resetTarget) return;
+    try {
+      const values = await resetForm.validateFields();
+      const dn = encodeURIComponent(resetTarget.dn);
+      await api.post(`/users/${dn}/reset-password`, {
+        password: values.password,
+        mustChangeAtNextLogin: values.mustChange ?? true,
+      });
+      notification.success({ message: `Password reset for ${resetTarget.displayName || resetTarget.samAccountName}` });
+      resetForm.resetFields();
+      setResetTarget(null);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message) {
+        notification.error({ message: 'Password reset failed', description: err.message });
+      }
+    }
+  }, [resetTarget, resetForm]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -193,7 +255,7 @@ export default function Users() {
                 setSelectedUser(record);
                 setDrawerOpen(true);
               } else {
-                notification.info({ message: `${key} — not yet implemented` });
+                handleUserAction(key, record);
               }
             },
           }}
@@ -258,9 +320,36 @@ export default function Users() {
           selectedRowKeys.length > 0 ? (
             <Space>
               <Text>{selectedRowKeys.length} selected</Text>
-              <Button size="small" onClick={() => notification.info({ message: 'Bulk enable — not yet implemented' })}>Enable</Button>
-              <Button size="small" onClick={() => notification.info({ message: 'Bulk disable — not yet implemented' })}>Disable</Button>
-              <Button size="small" danger onClick={() => notification.info({ message: 'Bulk delete — not yet implemented' })}>Delete</Button>
+              <Button size="small" onClick={async () => {
+                for (const dn of selectedRowKeys) {
+                  try { await api.post(`/users/${encodeURIComponent(dn)}/enable`); } catch { /* continue */ }
+                }
+                notification.success({ message: `${selectedRowKeys.length} user(s) enabled` });
+                setSelectedRowKeys([]); loadUsers();
+              }}>Enable</Button>
+              <Button size="small" onClick={async () => {
+                for (const dn of selectedRowKeys) {
+                  try { await api.post(`/users/${encodeURIComponent(dn)}/disable`); } catch { /* continue */ }
+                }
+                notification.success({ message: `${selectedRowKeys.length} user(s) disabled` });
+                setSelectedRowKeys([]); loadUsers();
+              }}>Disable</Button>
+              <Button size="small" danger onClick={() => {
+                Modal.confirm({
+                  title: 'Delete Users',
+                  icon: <ExclamationCircleOutlined />,
+                  content: `Delete ${selectedRowKeys.length} selected user(s)? This cannot be undone.`,
+                  okText: 'Delete All',
+                  okButtonProps: { danger: true },
+                  onOk: async () => {
+                    for (const dn of selectedRowKeys) {
+                      try { await api.delete(`/users/${encodeURIComponent(dn)}`); } catch { /* continue */ }
+                    }
+                    notification.success({ message: `${selectedRowKeys.length} user(s) deleted` });
+                    setSelectedRowKeys([]); loadUsers();
+                  },
+                });
+              }}>Delete</Button>
               <Button size="small" type="link" onClick={() => setSelectedRowKeys([])}>Clear</Button>
             </Space>
           ) : undefined
@@ -278,6 +367,31 @@ export default function Users() {
         onClose={() => setCreateOpen(false)}
         onSuccess={() => { setCreateOpen(false); loadUsers(); }}
       />
+
+      {/* Reset Password Modal */}
+      <Modal
+        title={`Reset Password — ${resetTarget?.displayName || resetTarget?.samAccountName || ''}`}
+        open={!!resetTarget}
+        onCancel={() => { resetForm.resetFields(); setResetTarget(null); }}
+        onOk={handleResetPassword}
+        okText="Reset Password"
+      >
+        <Form form={resetForm} layout="vertical" initialValues={{ mustChange: true }}>
+          <Form.Item
+            name="password"
+            label="New Password"
+            rules={[
+              { required: true, message: 'Password is required' },
+              { min: 12, message: 'Must be at least 12 characters' },
+            ]}
+          >
+            <Input.Password placeholder="Minimum 12 characters" />
+          </Form.Item>
+          <Form.Item name="mustChange" valuePropName="checked">
+            <input type="checkbox" /> Must change at next login
+          </Form.Item>
+        </Form>
+      </Modal>
     </Space>
   );
 }
