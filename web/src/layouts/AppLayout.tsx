@@ -20,10 +20,12 @@ import {
   SunOutlined,
   MoonOutlined,
   SearchOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import type { MenuProps } from 'antd';
 import CommandPalette from '../components/CommandPalette/CommandPalette';
+import { useAuth } from '../hooks/useAuth';
 
 const { Sider, Header, Content } = Layout;
 const { Text } = Typography;
@@ -109,6 +111,7 @@ export default function AppLayout({ isDark, onToggleTheme }: AppLayoutProps) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   // Cmd+K / Ctrl+K keyboard shortcut
   useEffect(() => {
@@ -237,6 +240,19 @@ export default function AppLayout({ isDark, onToggleTheme }: AppLayoutProps) {
                 onClick={() => setCommandPaletteOpen(true)}
               />
             </Tooltip>
+            {user && (
+              <>
+                <Text type="secondary" style={{ fontSize: 13 }}>{user.username}</Text>
+                <Tooltip title="Sign out">
+                  <Button
+                    type="text"
+                    icon={<LogoutOutlined />}
+                    size="small"
+                    onClick={async () => { await logout(); navigate('/login'); }}
+                  />
+                </Tooltip>
+              </>
+            )}
           </div>
         </Header>
 

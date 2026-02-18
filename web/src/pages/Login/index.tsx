@@ -1,21 +1,26 @@
 import { Card, Form, Input, Button, Typography, Space, Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 
 const { Title, Text } = Typography;
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: Call /api/auth/login
-      console.log('Login:', values);
-    } catch {
-      setError('Authentication failed. Check your credentials and try again.');
+      await login(values.username, values.password);
+      navigate('/', { replace: true });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Authentication failed';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -77,7 +82,7 @@ export default function Login() {
           </Form>
 
           <Text type="secondary" style={{ fontSize: 12, textAlign: 'center', display: 'block' }}>
-            Authenticate with your domain credentials or Kerberos ticket
+            Authenticate with your domain credentials
           </Text>
         </Space>
       </Card>

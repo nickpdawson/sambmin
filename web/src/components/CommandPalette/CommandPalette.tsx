@@ -6,7 +6,7 @@ import {
   ApartmentOutlined, GlobalOutlined, CloudServerOutlined,
   NodeIndexOutlined, SafetyCertificateOutlined, KeyOutlined,
   CrownOutlined, DatabaseOutlined, AuditOutlined, SettingOutlined,
-  PlusOutlined, LockOutlined, SearchOutlined, UnlockOutlined,
+  PlusOutlined, SearchOutlined, UnlockOutlined,
 } from '@ant-design/icons';
 import './CommandPalette.css';
 

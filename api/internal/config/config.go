@@ -18,6 +18,8 @@ type Config struct {
 
 	// LDAP
 	BaseDN string `yaml:"base_dn"`
+	BindDN string `yaml:"bind_dn"` // Service account DN for LDAP queries
+	BindPW string `yaml:"bind_pw"` // Can also use SAMBMIN_BIND_PW env var
 
 	// Kerberos
 	Kerberos KerberosConfig `yaml:"kerberos"`
