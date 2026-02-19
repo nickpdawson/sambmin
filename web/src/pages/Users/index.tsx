@@ -81,6 +81,8 @@ export default function Users() {
   const [resetForm] = Form.useForm();
   const [renameTarget, setRenameTarget] = useState<User | null>(null);
   const [renameForm] = Form.useForm();
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -103,18 +105,7 @@ export default function Users() {
     const name = record.displayName || record.samAccountName;
 
     if (action === 'delete') {
-      Modal.confirm({
-        title: 'Delete User',
-        icon: <ExclamationCircleOutlined />,
-        content: `Are you sure you want to delete ${name}? This cannot be undone.`,
-        okText: 'Delete',
-        okButtonProps: { danger: true },
-        onOk: async () => {
-          await api.delete(`/users/${dn}`);
-          notification.success({ message: `${name} deleted` });
-          loadUsers();
-        },
-      });
+      setDeleteTarget(record);
       return;
     }
 
@@ -186,6 +177,23 @@ export default function Users() {
       }
     }
   }, [renameTarget, renameForm, loadUsers]);
+
+  const handleDeleteUser = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const dn = encodeURIComponent(deleteTarget.dn);
+      await api.delete(`/users/${dn}`);
+      notification.success({ message: `${deleteTarget.displayName || deleteTarget.samAccountName} deleted` });
+      setDeleteTarget(null);
+      loadUsers();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Delete failed';
+      notification.error({ message: 'Delete failed', description: msg });
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [deleteTarget, loadUsers]);
 
   const filteredUsers = users.filter((u) => {
     if (tabFilter === 'active' && (!u.enabled || u.lockedOut)) return false;
@@ -486,6 +494,19 @@ export default function Users() {
             <Input />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Delete User Confirmation Modal */}
+      <Modal
+        title="Delete User"
+        open={!!deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        onOk={handleDeleteUser}
+        okText="Delete"
+        okButtonProps={{ danger: true, loading: deleteLoading }}
+      >
+        <p>Are you sure you want to delete <strong>{deleteTarget?.displayName || deleteTarget?.samAccountName}</strong>?</p>
+        <p>This action cannot be undone.</p>
       </Modal>
     </Space>
   );
