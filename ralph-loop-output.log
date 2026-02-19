@@ -70,3 +70,33 @@ Here's what was built:
 
 **All tests pass:** 65 Go tests, TypeScript clean, frontend builds, FreeBSD cross-compile succeeds.
 
+=== Iteration 1 — 2026-02-18 16:23:39 ===
+<promise>MILESTONE_COMPLETE</promise>
+
+**M15 Summary — Contacts & Rename Workflows**
+
+All done. Here's what was built:
+
+**Backend (Go):**
+- Contact model (22 fields) + LDAP attributes + directory queries
+- 5 contact write handlers: create, update (LDAP), delete, move, rename
+- 2 contact live read handlers + mock handlers for dev mode
+- User rename handler (`samba-tool user rename`)
+- Group rename handler (`samba-tool group rename`)
+- Computer create + move handlers
+- All routes registered
+
+**Frontend (React/TypeScript):**
+- Full Contacts page with ProTable, search, create/rename/delete modals
+- Tabbed ContactDrawer with inline editing (Identity, Organization, Groups, Details)
+- Rename action added to Users page
+- Rename + delete actions added to Groups page
+- Create + move + delete actions added to Computers page
+- Navigation updated with Contacts link
+
+**Tests:**
+- 28 new test functions covering all new handlers
+- **102 total tests passing** (up from 65)
+- Frontend `npm run build` clean
+- FreeBSD cross-compile clean
+

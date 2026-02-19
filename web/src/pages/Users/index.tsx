@@ -78,6 +78,8 @@ export default function Users() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [resetTarget, setResetTarget] = useState<User | null>(null);
   const [resetForm] = Form.useForm();
+  const [renameTarget, setRenameTarget] = useState<User | null>(null);
+  const [renameForm] = Form.useForm();
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -117,6 +119,12 @@ export default function Users() {
 
     if (action === 'reset') {
       setResetTarget(record);
+      return;
+    }
+
+    if (action === 'rename') {
+      setRenameTarget(record);
+      renameForm.setFieldsValue({ newName: record.displayName || record.samAccountName });
       return;
     }
 
@@ -160,6 +168,23 @@ export default function Users() {
       }
     }
   }, [resetTarget, resetForm]);
+
+  const handleRenameUser = useCallback(async () => {
+    if (!renameTarget) return;
+    try {
+      const values = await renameForm.validateFields();
+      const dn = encodeURIComponent(renameTarget.dn);
+      await api.post(`/users/${dn}/rename`, { newName: values.newName });
+      notification.success({ message: `Renamed to ${values.newName}` });
+      renameForm.resetFields();
+      setRenameTarget(null);
+      loadUsers();
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message) {
+        Modal.error({ title: 'Rename failed', content: err.message });
+      }
+    }
+  }, [renameTarget, renameForm, loadUsers]);
 
   const filteredUsers = users.filter((u) => {
     if (tabFilter === 'active' && (!u.enabled || u.lockedOut)) return false;
@@ -268,6 +293,7 @@ export default function Users() {
           menu={{
             items: [
               { key: 'view', label: 'View Details' },
+              { key: 'rename', label: 'Rename' },
               { key: 'reset', label: 'Reset Password' },
               { type: 'divider' },
               ...(record.lockedOut ? [{ key: 'unlock', label: 'Unlock Account' }] : []),
@@ -427,6 +453,21 @@ export default function Users() {
           </Form.Item>
           <Form.Item name="mustChange" valuePropName="checked">
             <input type="checkbox" /> Must change at next login
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Rename User Modal */}
+      <Modal
+        title={`Rename User — ${renameTarget?.displayName || renameTarget?.samAccountName || ''}`}
+        open={!!renameTarget}
+        onCancel={() => { renameForm.resetFields(); setRenameTarget(null); }}
+        onOk={handleRenameUser}
+        okText="Rename"
+      >
+        <Form form={renameForm} layout="vertical">
+          <Form.Item name="newName" label="New Name (CN)" rules={[{ required: true, message: 'New name is required' }]}>
+            <Input />
           </Form.Item>
         </Form>
       </Modal>

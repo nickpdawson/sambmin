@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Button, Input, Space, Tag, Tabs, Tooltip, Dropdown, Badge, Typography,
-  Drawer, Descriptions, Divider, notification,
+  Drawer, Descriptions, Divider, notification, Modal, Form,
 } from 'antd';
 import {
-  DesktopOutlined, ReloadOutlined, MoreOutlined,
+  DesktopOutlined, ReloadOutlined, MoreOutlined, PlusOutlined,
   CheckCircleOutlined, StopOutlined, SearchOutlined, CopyOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
@@ -54,6 +55,10 @@ export default function Computers() {
   const [selectedComputer, setSelectedComputer] = useState<Computer | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm] = Form.useForm();
+  const [moveTarget, setMoveTarget] = useState<Computer | null>(null);
+  const [moveForm] = Form.useForm();
 
   const loadComputers = useCallback(async () => {
     setLoading(true);
@@ -70,6 +75,63 @@ export default function Computers() {
   useEffect(() => {
     loadComputers();
   }, [loadComputers]);
+
+  const handleComputerAction = useCallback(async (action: string, record: Computer) => {
+    const dn = encodeURIComponent(record.dn);
+
+    if (action === 'delete') {
+      Modal.confirm({
+        title: 'Delete Computer',
+        icon: <ExclamationCircleOutlined />,
+        content: `Are you sure you want to delete ${record.name}? This cannot be undone.`,
+        okText: 'Delete',
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          await api.delete(`/computers/${dn}`);
+          notification.success({ message: `${record.name} deleted` });
+          loadComputers();
+        },
+      });
+      return;
+    }
+
+    if (action === 'move') {
+      setMoveTarget(record);
+      return;
+    }
+  }, [loadComputers]);
+
+  const handleCreate = useCallback(async () => {
+    try {
+      const values = await createForm.validateFields();
+      await api.post('/computers', values);
+      notification.success({ message: `Computer ${values.name} created` });
+      createForm.resetFields();
+      setCreateOpen(false);
+      loadComputers();
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message) {
+        Modal.error({ title: 'Failed to create computer', content: err.message });
+      }
+    }
+  }, [createForm, loadComputers]);
+
+  const handleMove = useCallback(async () => {
+    if (!moveTarget) return;
+    try {
+      const values = await moveForm.validateFields();
+      const dn = encodeURIComponent(moveTarget.dn);
+      await api.post(`/computers/${dn}/move`, { targetOu: values.targetOu });
+      notification.success({ message: `${moveTarget.name} moved` });
+      moveForm.resetFields();
+      setMoveTarget(null);
+      loadComputers();
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message) {
+        Modal.error({ title: 'Move failed', content: err.message });
+      }
+    }
+  }, [moveTarget, moveForm, loadComputers]);
 
   const filteredComputers = computers.filter((c) => {
     if (tabFilter === 'active' && !c.enabled) return false;
@@ -179,10 +241,7 @@ export default function Computers() {
           menu={{
             items: [
               { key: 'view', label: 'View Details' },
-              { type: 'divider' },
-              record.enabled
-                ? { key: 'disable', label: 'Disable Account', danger: true }
-                : { key: 'enable', label: 'Enable Account' },
+              { key: 'move', label: 'Move to OU' },
               { type: 'divider' },
               { key: 'delete', label: 'Delete Computer', danger: true },
             ],
@@ -191,7 +250,7 @@ export default function Computers() {
                 setSelectedComputer(record);
                 setDrawerOpen(true);
               } else {
-                notification.info({ message: `${key} — not yet implemented` });
+                handleComputerAction(key, record);
               }
             },
           }}
@@ -249,6 +308,9 @@ export default function Computers() {
           <Button key="refresh" icon={<ReloadOutlined />} onClick={loadComputers}>
             Refresh
           </Button>,
+          <Button key="create" type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            New Computer
+          </Button>,
         ]}
         headerTitle={
           selectedRowKeys.length > 0 ? (
@@ -269,6 +331,42 @@ export default function Computers() {
         open={drawerOpen}
         onClose={() => { setDrawerOpen(false); setSelectedComputer(null); }}
       />
+
+      {/* Create Computer Modal */}
+      <Modal
+        title="New Computer"
+        open={createOpen}
+        onCancel={() => { createForm.resetFields(); setCreateOpen(false); }}
+        onOk={handleCreate}
+        okText="Create"
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item name="name" label="Computer Name" rules={[{ required: true, message: 'Name is required' }]}>
+            <Input placeholder="WORKSTATION01" />
+          </Form.Item>
+          <Form.Item name="description" label="Description">
+            <Input />
+          </Form.Item>
+          <Form.Item name="ou" label="OU (optional)">
+            <Input placeholder="OU=Workstations,DC=dzsec,DC=net" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Move Computer Modal */}
+      <Modal
+        title={`Move Computer — ${moveTarget?.name || ''}`}
+        open={!!moveTarget}
+        onCancel={() => { moveForm.resetFields(); setMoveTarget(null); }}
+        onOk={handleMove}
+        okText="Move"
+      >
+        <Form form={moveForm} layout="vertical">
+          <Form.Item name="targetOu" label="Target OU" rules={[{ required: true, message: 'Target OU is required' }]}>
+            <Input placeholder="OU=Servers,DC=dzsec,DC=net" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Space>
   );
 }

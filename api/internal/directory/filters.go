@@ -65,6 +65,11 @@ func FilterOUs() string {
 	return "(objectClass=organizationalUnit)"
 }
 
+// FilterContacts matches contact objects (not users, not computers).
+func FilterContacts() string {
+	return "(&(objectClass=contact)(!(objectClass=user)))"
+}
+
 // FilterBySAM matches a specific sAMAccountName.
 func FilterBySAM(sam string) string {
 	return fmt.Sprintf("(sAMAccountName=%s)", goldap.EscapeFilter(sam))

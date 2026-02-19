@@ -62,6 +62,31 @@ type Computer struct {
 	WhenCreated    time.Time `json:"whenCreated"`
 }
 
+// Contact represents an AD contact object (non-security principal)
+type Contact struct {
+	DN          string `json:"dn"`
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName"`
+	GivenName   string `json:"givenName"`
+	Surname     string `json:"sn"`
+	Email       string `json:"mail"`
+	Description string `json:"description"`
+	Department  string `json:"department"`
+	Title       string `json:"title"`
+	Company     string `json:"company"`
+	Office      string `json:"office"`
+	Phone       string `json:"phone"`
+	Mobile      string `json:"mobile"`
+	Street      string `json:"streetAddress"`
+	City        string `json:"city"`
+	State       string `json:"state"`
+	PostalCode  string `json:"postalCode"`
+	Country     string `json:"country"`
+	WhenCreated time.Time `json:"whenCreated"`
+	WhenChanged time.Time `json:"whenChanged"`
+	MemberOf    []string  `json:"memberOf"`
+}
+
 // OU represents an Organizational Unit
 type OU struct {
 	DN          string `json:"dn"`

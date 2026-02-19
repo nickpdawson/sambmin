@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import Users from './pages/Users';
 import Groups from './pages/Groups';
 import Computers from './pages/Computers';
+import Contacts from './pages/Contacts';
 import OUs from './pages/OUs';
 import DNS from './pages/DNS';
 import Sites from './pages/Sites';
@@ -67,6 +68,7 @@ export default function App() {
                 <Route path="/users" element={<Users />} />
                 <Route path="/groups" element={<Groups />} />
                 <Route path="/computers" element={<Computers />} />
+                <Route path="/contacts" element={<Contacts />} />
                 <Route path="/ous" element={<OUs />} />
                 <Route path="/dns" element={<DNS />} />
                 <Route path="/sites" element={<Sites />} />

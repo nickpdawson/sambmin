@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Button, Input, Space, Tag, Tabs, Tooltip, Typography, Drawer, Descriptions,
-  Divider, List, notification,
+  Divider, List, notification, Dropdown, Modal, Form,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, SearchOutlined, TeamOutlined,
-  SafetyCertificateOutlined, MailOutlined, CopyOutlined,
+  SafetyCertificateOutlined, MailOutlined, CopyOutlined, MoreOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
@@ -61,6 +62,8 @@ export default function Groups() {
   const [search, setSearch] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<Group | null>(null);
+  const [renameForm] = Form.useForm();
 
   const loadGroups = useCallback(async () => {
     setLoading(true);
@@ -73,6 +76,49 @@ export default function Groups() {
       setLoading(false);
     }
   }, []);
+
+  const handleGroupAction = useCallback(async (action: string, record: Group) => {
+    const dn = encodeURIComponent(record.dn);
+
+    if (action === 'delete') {
+      Modal.confirm({
+        title: 'Delete Group',
+        icon: <ExclamationCircleOutlined />,
+        content: `Are you sure you want to delete ${record.name}? This cannot be undone.`,
+        okText: 'Delete',
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          await api.delete(`/groups/${dn}`);
+          notification.success({ message: `${record.name} deleted` });
+          loadGroups();
+        },
+      });
+      return;
+    }
+
+    if (action === 'rename') {
+      setRenameTarget(record);
+      renameForm.setFieldsValue({ newName: record.name });
+      return;
+    }
+  }, [loadGroups, renameForm]);
+
+  const handleRenameGroup = useCallback(async () => {
+    if (!renameTarget) return;
+    try {
+      const values = await renameForm.validateFields();
+      const dn = encodeURIComponent(renameTarget.dn);
+      await api.post(`/groups/${dn}/rename`, { newName: values.newName });
+      notification.success({ message: `Renamed to ${values.newName}` });
+      renameForm.resetFields();
+      setRenameTarget(null);
+      loadGroups();
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message) {
+        Modal.error({ title: 'Rename failed', content: err.message });
+      }
+    }
+  }, [renameTarget, renameForm, loadGroups]);
 
   useEffect(() => {
     loadGroups();
@@ -161,6 +207,34 @@ export default function Groups() {
       key: 'description',
       ellipsis: true,
       responsive: ['lg'],
+    },
+    {
+      title: '',
+      key: 'actions',
+      width: 48,
+      render: (_, record) => (
+        <Dropdown
+          menu={{
+            items: [
+              { key: 'view', label: 'View Details' },
+              { key: 'rename', label: 'Rename' },
+              { type: 'divider' },
+              { key: 'delete', label: 'Delete Group', danger: true },
+            ],
+            onClick: ({ key }) => {
+              if (key === 'view') {
+                setSelectedGroup(record);
+                setDrawerOpen(true);
+              } else {
+                handleGroupAction(key, record);
+              }
+            },
+          }}
+          trigger={['click']}
+        >
+          <Button type="text" icon={<MoreOutlined />} size="small" />
+        </Dropdown>
+      ),
     },
   ];
 
@@ -350,6 +424,21 @@ export default function Groups() {
           </>
         )}
       </Drawer>
+
+      {/* Rename Group Modal */}
+      <Modal
+        title={`Rename Group — ${renameTarget?.name || ''}`}
+        open={!!renameTarget}
+        onCancel={() => { renameForm.resetFields(); setRenameTarget(null); }}
+        onOk={handleRenameGroup}
+        okText="Rename"
+      >
+        <Form form={renameForm} layout="vertical">
+          <Form.Item name="newName" label="New Name" rules={[{ required: true, message: 'New name is required' }]}>
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Space>
   );
 }

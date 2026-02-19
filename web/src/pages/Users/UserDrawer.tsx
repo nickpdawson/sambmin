@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Drawer, Descriptions, Tag, Space, Button, Typography, Tooltip, Tabs,
-  notification, Modal, Select, Input, Form,
+  notification, Modal, Select, Input,
 } from 'antd';
 import {
   LockOutlined, StopOutlined, CheckCircleOutlined, KeyOutlined,
-  CopyOutlined, MailOutlined, EditOutlined, SaveOutlined,
+  CopyOutlined, EditOutlined, SaveOutlined,
   CloseOutlined, PlusOutlined, DeleteOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';

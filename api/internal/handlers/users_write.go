@@ -403,6 +403,56 @@ func handleUnlockUser(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]any{"success": true, "username": username})
 }
 
+// --- User Rename ---
+
+type renameUserRequest struct {
+	NewName      string `json:"newName"`
+	NewSurname   string `json:"newSurname"`
+	NewGivenName string `json:"newGivenName"`
+}
+
+func handleRenameUser(w http.ResponseWriter, r *http.Request) {
+	sess := requireSession(w, r)
+	if sess == nil {
+		return
+	}
+
+	dn := r.PathValue("dn")
+	username, err := samAccountNameFromDN(r.Context(), dn)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var req renameUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.NewName == "" {
+		respondError(w, http.StatusBadRequest, "new name required")
+		return
+	}
+
+	args := []string{"user", "rename", username, "--new-cn=" + req.NewName}
+	if req.NewSurname != "" {
+		args = append(args, "--surname=" + req.NewSurname)
+	}
+	if req.NewGivenName != "" {
+		args = append(args, "--given-name=" + req.NewGivenName)
+	}
+
+	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
+		slog.Error("user rename failed", "username", username, "newName", req.NewName, "actor", sess.Username, "error", err)
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	slog.Info("user renamed", "username", username, "newName", req.NewName, "actor", sess.Username)
+	respondJSON(w, http.StatusOK, map[string]any{"success": true, "oldName": username, "newName": req.NewName})
+}
+
 // cnFromDN extracts the CN value from a distinguished name.
 // e.g., "CN=jdoe,CN=Users,DC=dzsec,DC=net" → "jdoe"
 func cnFromDN(dn string) string {

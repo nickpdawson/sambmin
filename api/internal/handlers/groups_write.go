@@ -204,3 +204,43 @@ func handleRemoveGroupMember(w http.ResponseWriter, r *http.Request) {
 	slog.Info("group member removed", "group", groupName, "member", memberName, "actor", sess.Username)
 	respondJSON(w, http.StatusOK, map[string]any{"success": true})
 }
+
+// --- Group Rename ---
+
+type renameGroupRequest struct {
+	NewName string `json:"newName"`
+}
+
+func handleRenameGroup(w http.ResponseWriter, r *http.Request) {
+	sess := requireSession(w, r)
+	if sess == nil {
+		return
+	}
+
+	dn := r.PathValue("dn")
+	groupName := cnFromDN(dn)
+	if groupName == "" {
+		respondError(w, http.StatusBadRequest, "could not extract group name from DN")
+		return
+	}
+
+	var req renameGroupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.NewName == "" {
+		respondError(w, http.StatusBadRequest, "new name required")
+		return
+	}
+
+	if _, err := runSambaTool(r.Context(), sess, "group", "rename", groupName, "--new-name="+req.NewName); err != nil {
+		slog.Error("group rename failed", "name", groupName, "newName", req.NewName, "actor", sess.Username, "error", err)
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	slog.Info("group renamed", "oldName", groupName, "newName", req.NewName, "actor", sess.Username)
+	respondJSON(w, http.StatusOK, map[string]any{"success": true, "oldName": groupName, "newName": req.NewName})
+}

@@ -1164,3 +1164,437 @@ func TestHandleSelfProfileUpdateBadJSON(t *testing.T) {
 		t.Errorf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
 	}
 }
+
+// ================= M15: Contacts Tests =================
+
+func TestHandleCreateContactSuccess(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	body := `{"name":"External Vendor","givenName":"External","surname":"Vendor","mail":"vendor@example.com"}`
+	req := httptest.NewRequest("POST", "/api/contacts", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	handleCreateContact(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusCreated)
+	}
+}
+
+func TestHandleCreateContactNoAuth(t *testing.T) {
+	store, _ := setupTestAuth(t)
+	_ = store
+
+	body := `{"name":"Test Contact"}`
+	req := httptest.NewRequest("POST", "/api/contacts", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handleCreateContact(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestHandleCreateContactBadRequest(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	body := `{"name":""}`
+	req := httptest.NewRequest("POST", "/api/contacts", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	handleCreateContact(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandleCreateContactFailure(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupFailingSambaTool(t)
+
+	body := `{"name":"Test Contact"}`
+	req := httptest.NewRequest("POST", "/api/contacts", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	handleCreateContact(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestHandleDeleteContactSuccess(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("DELETE", "/api/contacts/{dn}", handleDeleteContact)
+
+	req := httptest.NewRequest("DELETE", "/api/contacts/CN=ExternalVendor,OU=Contacts,DC=test,DC=com", nil)
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestHandleDeleteContactNoAuth(t *testing.T) {
+	store, _ := setupTestAuth(t)
+	_ = store
+
+	mux := newMuxWithRoute("DELETE", "/api/contacts/{dn}", handleDeleteContact)
+
+	req := httptest.NewRequest("DELETE", "/api/contacts/CN=ExternalVendor,OU=Contacts,DC=test,DC=com", nil)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestHandleMoveContactSuccess(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/contacts/{dn}/move", handleMoveContact)
+
+	body := `{"targetOu":"OU=External,DC=test,DC=com"}`
+	req := httptest.NewRequest("POST", "/api/contacts/CN=ExternalVendor,OU=Contacts,DC=test,DC=com/move", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestHandleMoveContactBadRequest(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/contacts/{dn}/move", handleMoveContact)
+
+	body := `{"targetOu":""}`
+	req := httptest.NewRequest("POST", "/api/contacts/CN=ExternalVendor,OU=Contacts,DC=test,DC=com/move", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandleRenameContactSuccess(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/contacts/{dn}/rename", handleRenameContact)
+
+	body := `{"newName":"New Vendor Name"}`
+	req := httptest.NewRequest("POST", "/api/contacts/CN=ExternalVendor,OU=Contacts,DC=test,DC=com/rename", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestHandleRenameContactBadRequest(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/contacts/{dn}/rename", handleRenameContact)
+
+	body := `{"newName":""}`
+	req := httptest.NewRequest("POST", "/api/contacts/CN=ExternalVendor,OU=Contacts,DC=test,DC=com/rename", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandleUpdateContactDirClientNil(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	dirClient = nil
+
+	mux := newMuxWithRoute("PUT", "/api/contacts/{dn}", handleUpdateContact)
+
+	body := `{"displayName":"Updated Name"}`
+	req := httptest.NewRequest("PUT", "/api/contacts/CN=ExternalVendor,OU=Contacts,DC=test,DC=com", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+}
+
+// ================= M15: User Rename Tests =================
+
+func TestHandleRenameUserSuccess(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/users/{dn}/rename", handleRenameUser)
+
+	body := `{"newName":"John Smith-Doe"}`
+	req := httptest.NewRequest("POST", "/api/users/CN=jdoe,CN=Users,DC=test,DC=com/rename", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestHandleRenameUserNoAuth(t *testing.T) {
+	store, _ := setupTestAuth(t)
+	_ = store
+
+	mux := newMuxWithRoute("POST", "/api/users/{dn}/rename", handleRenameUser)
+
+	body := `{"newName":"New Name"}`
+	req := httptest.NewRequest("POST", "/api/users/CN=jdoe,CN=Users,DC=test,DC=com/rename", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestHandleRenameUserBadRequest(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/users/{dn}/rename", handleRenameUser)
+
+	body := `{"newName":""}`
+	req := httptest.NewRequest("POST", "/api/users/CN=jdoe,CN=Users,DC=test,DC=com/rename", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandleRenameUserFailure(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupFailingSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/users/{dn}/rename", handleRenameUser)
+
+	body := `{"newName":"New Name"}`
+	req := httptest.NewRequest("POST", "/api/users/CN=jdoe,CN=Users,DC=test,DC=com/rename", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+}
+
+// ================= M15: Group Rename Tests =================
+
+func TestHandleRenameGroupSuccess(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/groups/{dn}/rename", handleRenameGroup)
+
+	body := `{"newName":"Renamed Group"}`
+	req := httptest.NewRequest("POST", "/api/groups/CN=TestGroup,CN=Users,DC=test,DC=com/rename", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestHandleRenameGroupNoAuth(t *testing.T) {
+	store, _ := setupTestAuth(t)
+	_ = store
+
+	mux := newMuxWithRoute("POST", "/api/groups/{dn}/rename", handleRenameGroup)
+
+	body := `{"newName":"Renamed"}`
+	req := httptest.NewRequest("POST", "/api/groups/CN=TestGroup,CN=Users,DC=test,DC=com/rename", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestHandleRenameGroupBadRequest(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/groups/{dn}/rename", handleRenameGroup)
+
+	body := `{"newName":""}`
+	req := httptest.NewRequest("POST", "/api/groups/CN=TestGroup,CN=Users,DC=test,DC=com/rename", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+// ================= M15: Computer Create & Move Tests =================
+
+func TestHandleCreateComputerSuccess(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	body := `{"name":"WORKSTATION01"}`
+	req := httptest.NewRequest("POST", "/api/computers", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	handleCreateComputer(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusCreated)
+	}
+}
+
+func TestHandleCreateComputerNoAuth(t *testing.T) {
+	store, _ := setupTestAuth(t)
+	_ = store
+
+	body := `{"name":"WORKSTATION01"}`
+	req := httptest.NewRequest("POST", "/api/computers", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handleCreateComputer(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestHandleCreateComputerBadRequest(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	body := `{"name":""}`
+	req := httptest.NewRequest("POST", "/api/computers", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	handleCreateComputer(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandleCreateComputerFailure(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupFailingSambaTool(t)
+
+	body := `{"name":"WORKSTATION01"}`
+	req := httptest.NewRequest("POST", "/api/computers", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	handleCreateComputer(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestHandleMoveComputerSuccess(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/computers/{dn}/move", handleMoveComputer)
+
+	body := `{"targetOu":"OU=Servers,DC=test,DC=com"}`
+	req := httptest.NewRequest("POST", "/api/computers/CN=WORKSTATION1,CN=Computers,DC=test,DC=com/move", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestHandleMoveComputerBadRequest(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	mux := newMuxWithRoute("POST", "/api/computers/{dn}/move", handleMoveComputer)
+
+	body := `{"targetOu":""}`
+	req := httptest.NewRequest("POST", "/api/computers/CN=WORKSTATION1,CN=Computers,DC=test,DC=com/move", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandleMoveComputerNoAuth(t *testing.T) {
+	store, _ := setupTestAuth(t)
+	_ = store
+
+	mux := newMuxWithRoute("POST", "/api/computers/{dn}/move", handleMoveComputer)
+
+	body := `{"targetOu":"OU=Servers,DC=test,DC=com"}`
+	req := httptest.NewRequest("POST", "/api/computers/CN=WORKSTATION1,CN=Computers,DC=test,DC=com/move", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
