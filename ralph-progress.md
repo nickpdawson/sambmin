@@ -245,3 +245,92 @@ web/README.md
 **Completed:** true
 **Reason:** Completion promise matched
 
+
+---
+## Ralph Loop Started — 2026-02-18 16:23
+**Mode:** Single milestone M15
+**Max iterations:** 20
+
+
+---
+## Loop 1 — 2026-02-18 16:23
+**Milestone:** M15 — Contacts & Rename Workflows
+**Task:** Complete M15 — contacts CRUD, rename for users/groups, computer create/move
+**Actions taken:**
+- Created Contact model (22 fields) in models.go
+- Added ContactAttrs to ldap/attributes.go, FilterContacts() to filters.go
+- Added contactFromEntry() helper to directory/client.go
+- Created directory/contacts.go with ListContacts and GetContact (LDAP reads)
+- Created handlers/contacts_write.go with 5 handlers: create, update, delete, move, rename
+- Created handlers/contacts_live.go with list and get live LDAP handlers
+- Created handlers/contacts_mock.go with mock data for dev mode
+- Added handleRenameUser to users_write.go (samba-tool user rename)
+- Added handleRenameGroup to groups_write.go (samba-tool group rename)
+- Added handleCreateComputer and handleMoveComputer to computers_write.go
+- Registered all new routes in routes.go (contacts CRUD, user/group rename, computer create/move)
+- Created web/src/pages/Contacts/index.tsx — full ProTable page with create, rename, delete modals
+- Created web/src/pages/Contacts/ContactDrawer.tsx — tabbed detail drawer with inline editing (4 tabs)
+- Added Contacts to App.tsx routing and AppLayout.tsx navigation
+- Added rename action to Users/index.tsx (state, handler, menu item, modal)
+- Added rename and delete actions to Groups/index.tsx (dropdown actions, confirm delete, rename modal)
+- Added create, delete, move actions to Computers/index.tsx (toolbar button, dropdown actions, modals)
+- Wrote 28 new test functions covering all new handlers
+- Fixed test URL encoding (DNs with spaces in httptest.NewRequest)
+- Fixed TypeScript: reordered loadGroups declaration, removed unused imports
+**Test results:**
+- `go test ./...`: PASS — 102 tests total (10 auth + 92 handlers), all green
+- `npm run build`: PASS — tsc clean, vite built in 5.04s
+- `cross-compile`: PASS — GOOS=freebsd GOARCH=amd64 builds cleanly
+**Status:** SUCCESS
+**Next:** M15 completion criteria met:
+  - Contacts page with ProTable, detail drawer, CRUD operations
+  - Rename actions work for users and groups
+  - Computer create and move work
+  - All 102 tests pass, frontend builds, cross-compile succeeds
+
+<promise>MILESTONE_COMPLETE</promise>
+
+
+---
+## Loop 1 — 2026-02-18 16:23:39
+**Milestone:** (see output)
+**Duration:** 2026-02-18 16:23:39 to 2026-02-18 16:42:17
+**Git changes:**
+```
+ api/internal/directory/client.go         |  26 ++
+ api/internal/directory/filters.go        |   5 +
+ api/internal/handlers/computers_write.go |  80 ++++++
+ api/internal/handlers/groups_write.go    |  40 +++
+ api/internal/handlers/routes.go          |  18 ++
+ api/internal/handlers/users_write.go     |  50 ++++
+ api/internal/handlers/write_ops_test.go  | 434 +++++++++++++++++++++++++++++++
+ api/internal/ldap/attributes.go          |  10 +
+ api/internal/models/models.go            |  25 ++
+ ralph-loop-output.log                    |  30 +++
+ ralph-progress.md                        |  45 ++++
+ web/src/App.tsx                          |   2 +
+ web/src/layouts/AppLayout.tsx            |   3 +
+ web/src/pages/Computers/index.tsx        | 112 +++++++-
+ web/src/pages/Groups/index.tsx           |  93 ++++++-
+ web/src/pages/Users/UserDrawer.tsx       |   4 +-
+ web/src/pages/Users/index.tsx            |  41 +++
+ 17 files changed, 1007 insertions(+), 11 deletions(-)
+```
+**New files:** api/internal/directory/contacts.go
+api/internal/handlers/contacts_live.go
+api/internal/handlers/contacts_mock.go
+api/internal/handlers/contacts_write.go
+web/src/pages/Contacts/ContactDrawer.tsx
+web/src/pages/Contacts/index.tsx
+**Test output (snippet):**
+```
+- **102 total tests passing** (up from 65)
+```
+**Completion promise found:** YES
+
+---
+## Ralph Loop Ended — 2026-02-18 16:42
+**Iterations:** 1/20
+**Completed:** true
+**Reason:** Completion promise matched
+

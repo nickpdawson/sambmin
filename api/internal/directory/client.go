@@ -391,6 +391,32 @@ func computerFromEntry(entry *goldap.Entry) models.Computer {
 	}
 }
 
+func contactFromEntry(entry *goldap.Entry) models.Contact {
+	return models.Contact{
+		DN:          entry.DN,
+		Name:        getAttr(entry, ldap.AttrCN),
+		DisplayName: getAttr(entry, ldap.AttrDisplayName),
+		GivenName:   getAttr(entry, ldap.AttrGivenName),
+		Surname:     getAttr(entry, ldap.AttrSurname),
+		Email:       getAttr(entry, ldap.AttrEmail),
+		Description: getAttr(entry, ldap.AttrDescription),
+		Department:  getAttr(entry, ldap.AttrDepartment),
+		Title:       getAttr(entry, ldap.AttrTitle),
+		Company:     getAttr(entry, ldap.AttrCompany),
+		Office:      getAttr(entry, ldap.AttrPhysicalDelivery),
+		Phone:       getAttr(entry, ldap.AttrTelephone),
+		Mobile:      getAttr(entry, ldap.AttrMobile),
+		Street:      getAttr(entry, ldap.AttrStreetAddress),
+		City:        getAttr(entry, ldap.AttrCity),
+		State:       getAttr(entry, ldap.AttrState),
+		PostalCode:  getAttr(entry, ldap.AttrPostalCode),
+		Country:     getAttr(entry, ldap.AttrCountry),
+		WhenCreated: parseADTimestamp(getAttr(entry, ldap.AttrWhenCreated)),
+		WhenChanged: parseADTimestamp(getAttr(entry, ldap.AttrWhenChanged)),
+		MemberOf:    getAttrs(entry, ldap.AttrMemberOf),
+	}
+}
+
 func ouFromEntry(entry *goldap.Entry) models.OU {
 	return models.OU{
 		DN:          entry.DN,

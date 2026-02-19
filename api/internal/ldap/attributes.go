@@ -103,6 +103,16 @@ var ComputerAttrs = []string{
 	AttrWhenCreated, AttrLastLogon,
 }
 
+var ContactAttrs = []string{
+	AttrDN, AttrCN, AttrDisplayName, AttrGivenName, AttrSurname,
+	AttrEmail, AttrDescription,
+	AttrDepartment, AttrTitle, AttrCompany,
+	AttrPhysicalDelivery, AttrStreetAddress, AttrCity, AttrState, AttrPostalCode, AttrCountry,
+	AttrTelephone, AttrMobile,
+	AttrWhenCreated, AttrWhenChanged,
+	AttrMemberOf,
+}
+
 var OUAttrs = []string{
 	AttrDN, AttrOU, AttrDescription,
 }

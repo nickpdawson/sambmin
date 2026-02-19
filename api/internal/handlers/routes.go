@@ -71,6 +71,7 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client) {
 	mux.HandleFunc("POST /api/users/{dn}/enable", handleEnableUser)
 	mux.HandleFunc("POST /api/users/{dn}/disable", handleDisableUser)
 	mux.HandleFunc("POST /api/users/{dn}/unlock", handleUnlockUser)
+	mux.HandleFunc("POST /api/users/{dn}/rename", handleRenameUser)
 
 	// Groups
 	if dir != nil {
@@ -85,6 +86,7 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client) {
 	mux.HandleFunc("DELETE /api/groups/{dn}", handleDeleteGroup)
 	mux.HandleFunc("POST /api/groups/{dn}/members", handleAddGroupMember)
 	mux.HandleFunc("DELETE /api/groups/{dn}/members/{memberDn}", handleRemoveGroupMember)
+	mux.HandleFunc("POST /api/groups/{dn}/rename", handleRenameGroup)
 
 	// Computers
 	if dir != nil {
@@ -94,7 +96,23 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client) {
 		mux.HandleFunc("GET /api/computers", handleListComputers)
 		mux.HandleFunc("GET /api/computers/{dn}", handleGetComputer)
 	}
+	mux.HandleFunc("POST /api/computers", handleCreateComputer)
 	mux.HandleFunc("DELETE /api/computers/{dn}", handleDeleteComputer)
+	mux.HandleFunc("POST /api/computers/{dn}/move", handleMoveComputer)
+
+	// Contacts
+	if dir != nil {
+		mux.HandleFunc("GET /api/contacts", handleListContactsLive)
+		mux.HandleFunc("GET /api/contacts/{dn}", handleGetContactLive)
+	} else {
+		mux.HandleFunc("GET /api/contacts", handleListContactsMock)
+		mux.HandleFunc("GET /api/contacts/{dn}", handleGetContactMock)
+	}
+	mux.HandleFunc("POST /api/contacts", handleCreateContact)
+	mux.HandleFunc("PUT /api/contacts/{dn}", handleUpdateContact)
+	mux.HandleFunc("DELETE /api/contacts/{dn}", handleDeleteContact)
+	mux.HandleFunc("POST /api/contacts/{dn}/move", handleMoveContact)
+	mux.HandleFunc("POST /api/contacts/{dn}/rename", handleRenameContact)
 
 	// OUs
 	if dir != nil {
