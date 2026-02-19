@@ -11,6 +11,7 @@ import {
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
 import { api } from '../../api/client';
+import ExportButton from '../../components/ExportButton';
 
 const { Text, Title } = Typography;
 
@@ -276,6 +277,19 @@ export default function Groups() {
             onChange={(e) => setSearch(e.target.value)}
             allowClear
             style={{ width: 240 }}
+          />,
+          <ExportButton
+            key="export"
+            data={filteredGroups as unknown as Record<string, unknown>[]}
+            filename="sambmin-groups"
+            columns={[
+              { key: 'name', title: 'Name' },
+              { key: 'groupType', title: 'Type' },
+              { key: 'groupScope', title: 'Scope' },
+              { key: 'description', title: 'Description' },
+              { key: 'members', title: 'Members' },
+              { key: 'dn', title: 'DN' },
+            ]}
           />,
           <Button key="refresh" icon={<ReloadOutlined />} onClick={loadGroups} />,
           <Button

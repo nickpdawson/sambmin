@@ -11,6 +11,7 @@ import {
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
 import { api } from '../../api/client';
+import ExportButton from '../../components/ExportButton';
 
 const { Text, Title } = Typography;
 
@@ -304,6 +305,20 @@ export default function Computers() {
             onChange={(e) => setSearch(e.target.value)}
             allowClear
             style={{ width: 260 }}
+          />,
+          <ExportButton
+            key="export"
+            data={filteredComputers as unknown as Record<string, unknown>[]}
+            filename="sambmin-computers"
+            columns={[
+              { key: 'name', title: 'Name' },
+              { key: 'dnsHostName', title: 'DNS Hostname' },
+              { key: 'operatingSystem', title: 'OS' },
+              { key: 'operatingSystemVersion', title: 'OS Version' },
+              { key: 'enabled', title: 'Enabled' },
+              { key: 'lastLogon', title: 'Last Logon' },
+              { key: 'dn', title: 'DN' },
+            ]}
           />,
           <Button key="refresh" icon={<ReloadOutlined />} onClick={loadComputers}>
             Refresh

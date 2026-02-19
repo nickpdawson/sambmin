@@ -14,6 +14,11 @@ import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import { api } from '../../api/client';
 import CreateRecordDrawer from './CreateRecordDrawer';
+import ServerInfoTab from './ServerInfoTab';
+import SRVValidatorTab from './SRVValidatorTab';
+import ConsistencyTab from './ConsistencyTab';
+import QueryToolTab from './QueryToolTab';
+import ZonePropertiesPanel from './ZonePropertiesPanel';
 
 const { Title, Text } = Typography;
 
@@ -557,6 +562,9 @@ export default function DNS() {
                   </Card>
                 )}
 
+                {/* Zone properties (aging/scavenging) */}
+                {selectedZone && <ZonePropertiesPanel zoneName={selectedZone} />}
+
                 {/* Record type filter tabs */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <Space size={4} wrap>
@@ -712,6 +720,26 @@ export default function DNS() {
                 </Card>
               </div>
             ),
+          },
+          {
+            key: 'serverinfo',
+            label: 'Server Info',
+            children: <ServerInfoTab />,
+          },
+          {
+            key: 'query',
+            label: 'Query Tool',
+            children: <QueryToolTab />,
+          },
+          {
+            key: 'srv-validator',
+            label: 'SRV Validator',
+            children: <SRVValidatorTab />,
+          },
+          {
+            key: 'consistency',
+            label: 'Consistency',
+            children: <ConsistencyTab />,
           },
         ]}
       />

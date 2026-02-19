@@ -11,6 +11,7 @@ import {
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
 import { api } from '../../api/client';
+import ExportButton from '../../components/ExportButton';
 import UserDrawer from './UserDrawer';
 import CreateUserDrawer from './CreateUserDrawer';
 
@@ -363,6 +364,21 @@ export default function Users() {
             onChange={(e) => setSearch(e.target.value)}
             allowClear
             style={{ width: 240 }}
+          />,
+          <ExportButton
+            key="export"
+            data={filteredUsers as unknown as Record<string, unknown>[]}
+            filename="sambmin-users"
+            columns={[
+              { key: 'samAccountName', title: 'Username' },
+              { key: 'displayName', title: 'Display Name' },
+              { key: 'mail', title: 'Email' },
+              { key: 'department', title: 'Department' },
+              { key: 'title', title: 'Title' },
+              { key: 'enabled', title: 'Enabled' },
+              { key: 'lastLogon', title: 'Last Logon' },
+              { key: 'dn', title: 'DN' },
+            ]}
           />,
           <Button key="refresh" icon={<ReloadOutlined />} onClick={loadUsers} />,
           <Button key="create" type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>

@@ -10,6 +10,7 @@ import {
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
 import { api } from '../../api/client';
+import ExportButton from '../../components/ExportButton';
 import ContactDrawer from './ContactDrawer';
 
 
@@ -253,6 +254,20 @@ export default function Contacts() {
             onChange={(e) => setSearch(e.target.value)}
             allowClear
             style={{ width: 240 }}
+          />,
+          <ExportButton
+            key="export"
+            data={filteredContacts as unknown as Record<string, unknown>[]}
+            filename="sambmin-contacts"
+            columns={[
+              { key: 'name', title: 'Name' },
+              { key: 'mail', title: 'Email' },
+              { key: 'department', title: 'Department' },
+              { key: 'title', title: 'Title' },
+              { key: 'company', title: 'Company' },
+              { key: 'phone', title: 'Phone' },
+              { key: 'dn', title: 'DN' },
+            ]}
           />,
           <Button key="refresh" icon={<ReloadOutlined />} onClick={loadContacts} />,
           <Button key="create" type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>

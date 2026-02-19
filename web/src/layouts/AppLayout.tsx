@@ -22,6 +22,8 @@ import {
   MoonOutlined,
   SearchOutlined,
   LogoutOutlined,
+  FileSearchOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import type { MenuProps } from 'antd';
@@ -57,6 +59,7 @@ const menuItems: MenuItem[] = [
       { key: '/computers', icon: <DesktopOutlined />, label: 'Computers' },
       { key: '/contacts', icon: <ContactsOutlined />, label: 'Contacts' },
       { key: '/ous', icon: <ApartmentOutlined />, label: 'Organizational Units' },
+      { key: '/search', icon: <FileSearchOutlined />, label: 'Advanced Search' },
     ],
   },
   {
@@ -75,6 +78,7 @@ const menuItems: MenuItem[] = [
     label: 'POLICY & SECURITY',
     children: [
       { key: '/gpo', icon: <SafetyCertificateOutlined />, label: 'Group Policy' },
+      { key: '/password-policy', icon: <LockOutlined />, label: 'Password Policies' },
       { key: '/kerberos', icon: <KeyOutlined />, label: 'Kerberos' },
       { key: '/fsmo', icon: <CrownOutlined />, label: 'FSMO Roles' },
       { key: '/schema', icon: <DatabaseOutlined />, label: 'Schema' },
@@ -98,10 +102,12 @@ const pathLabels: Record<string, string> = {
   '/computers': 'Computers',
   '/contacts': 'Contacts',
   '/ous': 'Organizational Units',
+  '/search': 'Advanced Search',
   '/dns': 'DNS',
   '/sites': 'Sites & Services',
   '/replication': 'Replication',
   '/gpo': 'Group Policy',
+  '/password-policy': 'Password Policies',
   '/kerberos': 'Kerberos',
   '/fsmo': 'FSMO Roles',
   '/schema': 'Schema',

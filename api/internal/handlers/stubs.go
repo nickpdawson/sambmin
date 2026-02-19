@@ -22,29 +22,19 @@ func handleGetComputer(w http.ResponseWriter, r *http.Request)   { respondError(
 func handleListOUs(w http.ResponseWriter, r *http.Request) { respondError(w, 501, "not implemented") }
 func handleOUTree(w http.ResponseWriter, r *http.Request)  { respondError(w, 501, "not implemented") }
 
-// Replication handlers — Phase 4
+// Replication stubs — mock mode (no LDAP)
 func handleReplicationTopology(w http.ResponseWriter, r *http.Request) {
 	respondError(w, 501, "not implemented")
 }
 func handleReplicationStatus(w http.ResponseWriter, r *http.Request) {
 	respondError(w, 501, "not implemented")
 }
-func handleForceSync(w http.ResponseWriter, r *http.Request) { respondError(w, 501, "not implemented") }
 
-// Sites handlers — Phase 4
+// Sites stubs — mock mode
 func handleListSites(w http.ResponseWriter, r *http.Request)   { respondError(w, 501, "not implemented") }
-func handleCreateSite(w http.ResponseWriter, r *http.Request)  { respondError(w, 501, "not implemented") }
 func handleListSubnets(w http.ResponseWriter, r *http.Request) { respondError(w, 501, "not implemented") }
 
-// FSMO handlers — Phase 4
+// FSMO stubs — mock mode
 func handleGetFSMORoles(w http.ResponseWriter, r *http.Request) {
-	respondError(w, 501, "not implemented")
-}
-func handleTransferFSMO(w http.ResponseWriter, r *http.Request) {
-	respondError(w, 501, "not implemented")
-}
-
-// Audit handlers — Phase 6
-func handleListAuditLog(w http.ResponseWriter, r *http.Request) {
 	respondError(w, 501, "not implemented")
 }

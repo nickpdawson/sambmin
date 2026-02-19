@@ -21,6 +21,8 @@ import FSMO from './pages/FSMO';
 import Schema from './pages/Schema';
 import AuditLog from './pages/AuditLog';
 import Settings from './pages/Settings';
+import Search from './pages/Search';
+import PasswordPolicy from './pages/PasswordPolicy';
 import type { ReactNode } from 'react';
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -77,6 +79,8 @@ export default function App() {
                 <Route path="/kerberos" element={<Kerberos />} />
                 <Route path="/fsmo" element={<FSMO />} />
                 <Route path="/schema" element={<Schema />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="/password-policy" element={<PasswordPolicy />} />
                 <Route path="/audit" element={<AuditLog />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>

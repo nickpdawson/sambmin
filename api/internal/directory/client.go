@@ -128,6 +128,79 @@ func (c *Client) countObjects(conn *ldap.Conn, filter string) (int, error) {
 	return len(result.Entries), nil
 }
 
+// Search executes an LDAP search with the given parameters and returns results
+// as generic attribute maps.
+func (c *Client) Search(ctx context.Context, baseDN string, scope int, filter string, attributes []string) ([]models.SearchResult, error) {
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get connection: %w", err)
+	}
+	defer c.pool.Put(conn)
+
+	sr := goldap.NewSearchRequest(
+		baseDN,
+		scope,
+		goldap.NeverDerefAliases,
+		1000, // size limit
+		30,   // time limit seconds
+		false,
+		filter,
+		attributes,
+		nil,
+	)
+
+	result, err := conn.SearchWithPaging(sr, 500)
+	if err != nil {
+		return nil, fmt.Errorf("search: %w", err)
+	}
+
+	results := make([]models.SearchResult, 0, len(result.Entries))
+	for _, entry := range result.Entries {
+		attrs := make(map[string]string, len(entry.Attributes))
+		for _, attr := range entry.Attributes {
+			vals := attr.Values
+			if len(vals) > 0 {
+				attrs[attr.Name] = strings.Join(vals, "; ")
+			}
+		}
+
+		// Determine object type from objectClass
+		objType := "unknown"
+		classes := entry.GetAttributeValues("objectClass")
+		for _, cls := range classes {
+			switch strings.ToLower(cls) {
+			case "user":
+				objType = "user"
+			case "computer":
+				objType = "computer"
+			case "group":
+				objType = "group"
+			case "contact":
+				if objType != "user" {
+					objType = "contact"
+				}
+			case "organizationalunit":
+				objType = "ou"
+			}
+		}
+		// Computer accounts also have objectClass=user, so check explicitly
+		for _, cls := range classes {
+			if strings.ToLower(cls) == "computer" {
+				objType = "computer"
+				break
+			}
+		}
+
+		results = append(results, models.SearchResult{
+			DN:         entry.DN,
+			ObjectType: objType,
+			Attributes: attrs,
+		})
+	}
+
+	return results, nil
+}
+
 // ModifyAttributes updates LDAP attributes on an object, authenticated as the
 // specified user (not the service account). Creates a temporary connection
 // bound as the user for the modification.
