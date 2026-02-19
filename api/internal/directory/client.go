@@ -491,9 +491,14 @@ func contactFromEntry(entry *goldap.Entry) models.Contact {
 }
 
 func ouFromEntry(entry *goldap.Entry) models.OU {
+	name := getAttr(entry, ldap.AttrOU)
+	if name == "" {
+		// CN= containers (e.g., CN=Users, CN=Builtin) don't have the ou attribute
+		name = getAttr(entry, ldap.AttrCN)
+	}
 	return models.OU{
 		DN:          entry.DN,
-		Name:        getAttr(entry, ldap.AttrOU),
+		Name:        name,
 		Description: getAttr(entry, ldap.AttrDescription),
 	}
 }

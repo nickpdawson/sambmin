@@ -60,9 +60,9 @@ func FilterComputers() string {
 	return "(objectClass=computer)"
 }
 
-// FilterOUs matches organizational units.
+// FilterOUs matches organizational units and CN= containers (e.g., CN=Users, CN=Computers, CN=Builtin).
 func FilterOUs() string {
-	return "(objectClass=organizationalUnit)"
+	return "(|(objectClass=organizationalUnit)(objectClass=container))"
 }
 
 // FilterContacts matches contact objects (not users, not computers).

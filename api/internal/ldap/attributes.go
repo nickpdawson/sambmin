@@ -114,5 +114,5 @@ var ContactAttrs = []string{
 }
 
 var OUAttrs = []string{
-	AttrDN, AttrOU, AttrDescription,
+	AttrDN, AttrOU, AttrCN, AttrDescription, "objectClass",
 }

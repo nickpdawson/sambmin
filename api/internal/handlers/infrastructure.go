@@ -92,7 +92,7 @@ func handleReplicationStatusLive(w http.ResponseWriter, _ *http.Request) {
 				Site:    dc.Site,
 			}
 
-			output, err := runDNSCommand("drs", "showrepl", dc.Address)
+			output, err := runDNSCommandForHost(dc.Address, "drs", "showrepl")
 			if err != nil {
 				r.Error = err.Error()
 				mu.Lock()
