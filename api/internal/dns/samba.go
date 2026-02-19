@@ -96,7 +96,7 @@ func (s *SambaClient) ListRecords(ctx context.Context, zone string, recordType s
 		return nil, fmt.Errorf("list records for zone %s: %w", zone, err)
 	}
 
-	return parseRecordOutput(output, "@"), nil
+	return ParseRecordOutput(output, "@"), nil
 }
 
 // GetZoneRecords queries records for a specific name within a zone.
@@ -109,7 +109,7 @@ func (s *SambaClient) GetZoneRecords(ctx context.Context, zone, name string) ([]
 		return nil, fmt.Errorf("get records for %s in zone %s: %w", name, zone, err)
 	}
 
-	return parseRecordOutput(output, name), nil
+	return ParseRecordOutput(output, name), nil
 }
 
 // QueryAllRecords queries every name in a zone using wildcard '*'.
@@ -122,7 +122,7 @@ func (s *SambaClient) QueryAllRecords(ctx context.Context, zone string) ([]model
 		return s.ListRecords(ctx, zone, "")
 	}
 
-	return parseRecordOutput(output, ""), nil
+	return ParseRecordOutput(output, ""), nil
 }
 
 // --- Parsing helpers ---
@@ -213,7 +213,7 @@ var ttlRe = regexp.MustCompile(`ttl=(\d+)`)
 
 // parseRecordOutput parses the text output of `samba-tool dns query`.
 // The output contains name headers followed by record detail lines.
-func parseRecordOutput(output string, defaultName string) []models.DNSRecord {
+func ParseRecordOutput(output string, defaultName string) []models.DNSRecord {
 	var records []models.DNSRecord
 	currentName := defaultName
 
@@ -363,6 +363,167 @@ func parseSOAData(data string) string {
 	minTTL := fields["minttl"]
 
 	return fmt.Sprintf("%s %s %s %s %s %s %s", ns, email, serial, refresh, retry, expire, minTTL)
+}
+
+// ServerInfo queries DNS server configuration via `samba-tool dns serverinfo`.
+func (s *SambaClient) ServerInfo(ctx context.Context) (*models.DNSServerInfo, error) {
+	output, err := s.run(ctx, "dns", "serverinfo", s.server)
+	if err != nil {
+		return nil, fmt.Errorf("server info: %w", err)
+	}
+	return ParseServerInfo(output, s.server), nil
+}
+
+// ZoneInfo queries detailed zone properties via `samba-tool dns zoneinfo`.
+func (s *SambaClient) ZoneInfo(ctx context.Context, zone string) (*models.DNSZoneInfo, error) {
+	output, err := s.run(ctx, "dns", "zoneinfo", s.server, zone)
+	if err != nil {
+		return nil, fmt.Errorf("zone info for %s: %w", zone, err)
+	}
+	return ParseZoneInfo(output, zone), nil
+}
+
+// QueryWithServer queries DNS records using a specific server (DC).
+func (s *SambaClient) QueryWithServer(ctx context.Context, server, zone, name, recordType string) ([]models.DNSRecord, error) {
+	qType := "ALL"
+	if recordType != "" {
+		qType = recordType
+	}
+
+	// Build args using the specified server, not the default
+	args := []string{"dns", "query", server, zone, name, qType}
+	if s.username != "" && s.password != "" {
+		args = append(args, "-U", fmt.Sprintf("%s%%%s", s.username, s.password))
+	}
+
+	ctx2, cancel := context.WithTimeout(ctx, cmdTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx2, sambaTool, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	slog.Debug("dns: query with server", "server", server, "zone", zone, "name", name, "type", qType)
+
+	if err := cmd.Run(); err != nil {
+		if strings.Contains(stderr.String(), "WERR_DNS_ERROR_NAME_DOES_NOT_EXIST") {
+			return []models.DNSRecord{}, nil
+		}
+		return nil, fmt.Errorf("query %s on %s: %w: %s", name, server, err, stderr.String())
+	}
+
+	return ParseRecordOutput(stdout.String(), name), nil
+}
+
+// parseServerInfo parses `samba-tool dns serverinfo` output.
+// Example output:
+//
+//	DNS information for DC 'localhost'
+//	dwVersion                   : 14601
+//	fBootMethod                 : DNS_BOOT_METHOD_DIRECTORY
+//	fAdminConfigured            : FALSE
+//	fAllowUpdate                : TRUE
+//	fDsAvailable                : TRUE
+//	dwForwardTimeout            : 3
+//	dwRpcProtocol               : 5
+//	aipForwarders               : ip4:10.15.15.1
+//	...
+func ParseServerInfo(output string, server string) *models.DNSServerInfo {
+	info := &models.DNSServerInfo{Server: server}
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		val := strings.TrimSpace(parts[1])
+
+		switch key {
+		case "dwVersion":
+			info.Version = val
+		case "fAllowUpdate":
+			if strings.EqualFold(val, "TRUE") {
+				info.AllowUpdate = "secure"
+			} else {
+				info.AllowUpdate = "none"
+			}
+		case "aipForwarders":
+			if val != "" && !strings.EqualFold(val, "NULL") {
+				for _, f := range strings.Fields(val) {
+					// Strip "ip4:" or "ip6:" prefix
+					f = strings.TrimPrefix(f, "ip4:")
+					f = strings.TrimPrefix(f, "ip6:")
+					info.Forwarders = append(info.Forwarders, f)
+				}
+			}
+		}
+	}
+
+	return info
+}
+
+// parseZoneInfo parses `samba-tool dns zoneinfo` output.
+// Example output:
+//
+//	Zone information for 'dzsec.net'
+//	pszZoneName                 : dzsec.net
+//	Flags                       : DNS_RPC_ZONE_DSINTEGRATED DNS_RPC_ZONE_UPDATE_SECURE
+//	ZoneType                    : DNS_ZONE_TYPE_PRIMARY
+//	fAging                      : 0
+//	dwNoRefreshInterval         : 168
+//	dwRefreshInterval           : 168
+//	dwAvailForScavengeTime      : 0
+//	aipScavengeServers          : <none>
+func ParseZoneInfo(output string, zoneName string) *models.DNSZoneInfo {
+	info := &models.DNSZoneInfo{
+		Name:    zoneName,
+		Backend: "samba",
+		Status:  "healthy",
+	}
+
+	if strings.Contains(zoneName, "in-addr.arpa") || strings.Contains(zoneName, "ip6.arpa") {
+		info.Type = "reverse"
+	} else {
+		info.Type = "forward"
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		val := strings.TrimSpace(parts[1])
+
+		switch key {
+		case "Flags":
+			if strings.Contains(val, "DNS_RPC_ZONE_UPDATE_SECURE") {
+				info.DynamicUpdate = "secure"
+			} else if strings.Contains(val, "DNS_RPC_ZONE_UPDATE_NONSECURE") {
+				info.DynamicUpdate = "nonsecure"
+			} else {
+				info.DynamicUpdate = "none"
+			}
+		case "fAging":
+			info.AgingEnabled = val != "0"
+		case "dwNoRefreshInterval":
+			info.NoRefreshInterval, _ = strconv.Atoi(val)
+		case "dwRefreshInterval":
+			info.RefreshInterval, _ = strconv.Atoi(val)
+		case "aipScavengeServers":
+			if val != "<none>" && val != "" {
+				info.ScavengeServers = val
+			}
+		}
+	}
+
+	return info
 }
 
 func minInt(a, b int) int {

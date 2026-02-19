@@ -141,25 +141,85 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client) {
 	mux.HandleFunc("PUT /api/dns/zones/{zone}/records/{name}", handleUpdateDNSRecord)
 	mux.HandleFunc("DELETE /api/dns/zones/{zone}/records/{name}", handleDeleteDNSRecord)
 
+	// DNS Deep Dive (M17)
+	mux.HandleFunc("GET /api/dns/serverinfo", handleDNSServerInfo)
+	mux.HandleFunc("GET /api/dns/zones/{zone}/info", handleDNSZoneInfo)
+	mux.HandleFunc("PUT /api/dns/zones/{zone}/options", handleDNSZoneOptions)
+	mux.HandleFunc("POST /api/dns/query", handleDNSQuery)
+	mux.HandleFunc("GET /api/dns/srv-validator", handleDNSSRVValidator)
+	mux.HandleFunc("GET /api/dns/consistency", handleDNSConsistency)
+	mux.HandleFunc("GET /api/dns/limitations", handleDNSLimitations)
+
+	// Search
+	mux.HandleFunc("POST /api/search", handleSearch)
+	mux.HandleFunc("GET /api/search/saved", handleListSavedQueries)
+	mux.HandleFunc("POST /api/search/saved", handleCreateSavedQuery)
+	mux.HandleFunc("DELETE /api/search/saved/{id}", handleDeleteSavedQuery)
+
+	// Password Policy
+	mux.HandleFunc("GET /api/password-policy", handleGetPasswordPolicy)
+	mux.HandleFunc("PUT /api/password-policy", handleUpdatePasswordPolicy)
+	mux.HandleFunc("GET /api/password-policy/pso", handleListPSOs)
+	mux.HandleFunc("POST /api/password-policy/pso", handleCreatePSO)
+	mux.HandleFunc("PUT /api/password-policy/pso/{name}", handleUpdatePSO)
+	mux.HandleFunc("DELETE /api/password-policy/pso/{name}", handleDeletePSO)
+	mux.HandleFunc("POST /api/password-policy/pso/{name}/apply", handleApplyPSO)
+	mux.HandleFunc("POST /api/password-policy/pso/{name}/unapply", handleUnapplyPSO)
+	mux.HandleFunc("GET /api/password-policy/user/{username}", handleGetEffectivePolicy)
+	mux.HandleFunc("POST /api/password-policy/test", handleTestPassword)
+
 	// Settings (mock data for dev)
 	mux.HandleFunc("GET /api/settings", handleGetSettingsMock)
 
 	// Replication
-	mux.HandleFunc("GET /api/replication/topology", handleReplicationTopology)
-	mux.HandleFunc("GET /api/replication/status", handleReplicationStatus)
-	mux.HandleFunc("POST /api/replication/sync", handleForceSync)
+	if dir != nil {
+		mux.HandleFunc("GET /api/replication/topology", handleReplicationTopologyLive)
+		mux.HandleFunc("GET /api/replication/status", handleReplicationStatusLive)
+	} else {
+		mux.HandleFunc("GET /api/replication/topology", handleReplicationTopology)
+		mux.HandleFunc("GET /api/replication/status", handleReplicationStatus)
+	}
+	mux.HandleFunc("POST /api/replication/sync", handleForceSyncLive)
 
 	// Sites
-	mux.HandleFunc("GET /api/sites", handleListSites)
-	mux.HandleFunc("POST /api/sites", handleCreateSite)
-	mux.HandleFunc("GET /api/sites/{site}/subnets", handleListSubnets)
+	if dir != nil {
+		mux.HandleFunc("GET /api/sites", handleListSitesLive)
+		mux.HandleFunc("GET /api/sites/{site}/subnets", handleListSubnetsLive)
+	} else {
+		mux.HandleFunc("GET /api/sites", handleListSites)
+		mux.HandleFunc("GET /api/sites/{site}/subnets", handleListSubnets)
+	}
+	mux.HandleFunc("POST /api/sites", handleCreateSiteLive)
 
 	// FSMO Roles
-	mux.HandleFunc("GET /api/fsmo", handleGetFSMORoles)
-	mux.HandleFunc("POST /api/fsmo/transfer", handleTransferFSMO)
+	if dir != nil {
+		mux.HandleFunc("GET /api/fsmo", handleGetFSMORolesLive)
+	} else {
+		mux.HandleFunc("GET /api/fsmo", handleGetFSMORoles)
+	}
+	mux.HandleFunc("POST /api/fsmo/transfer", handleTransferFSMOLive)
 
 	// Audit Log
-	mux.HandleFunc("GET /api/audit", handleListAuditLog)
+	mux.HandleFunc("GET /api/audit", handleListAuditLogLive)
+
+	// GPO Management (M19)
+	mux.HandleFunc("GET /api/gpo", handleListGPOs)
+	mux.HandleFunc("GET /api/gpo/{id}", handleGetGPO)
+	mux.HandleFunc("POST /api/gpo", handleCreateGPO)
+	mux.HandleFunc("DELETE /api/gpo/{id}", handleDeleteGPO)
+	mux.HandleFunc("POST /api/gpo/{id}/link", handleLinkGPO)
+	mux.HandleFunc("DELETE /api/gpo/{id}/link", handleUnlinkGPO)
+	mux.HandleFunc("GET /api/gpo/links/{ou}", handleGetGPOLinks)
+
+	// SPN Management (M19)
+	mux.HandleFunc("GET /api/spn/{account}", handleListSPNs)
+	mux.HandleFunc("POST /api/spn", handleAddSPN)
+	mux.HandleFunc("DELETE /api/spn", handleDeleteSPN)
+
+	// Delegation Management (M19)
+	mux.HandleFunc("GET /api/delegation/{account}", handleGetDelegation)
+	mux.HandleFunc("POST /api/delegation/{account}/service", handleAddDelegationService)
+	mux.HandleFunc("DELETE /api/delegation/{account}/service", handleRemoveDelegationService)
 }
 
 // respondJSON writes a JSON response with status code
