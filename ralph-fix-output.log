@@ -1,0 +1,48 @@
+=== Iteration 1 — 2026-02-18 18:53:35 ===
+All fixes are complete. Here's the summary:
+
+---
+
+## Fix Pass Summary
+
+### C1: Users page regression — FIXED
+**Root cause:** Null-safety crash. LDAP users without `displayName`, `mail`, `department`, or `memberOf` attributes caused `TypeError: Cannot read properties of null (reading 'toLowerCase')` / `TypeError: Cannot read properties of null (reading 'slice')`, crashing the entire page.
+**Fix:** Added null-safe fallbacks (`|| ''` and `|| []`) in `web/src/pages/Users/index.tsx` for search filtering, column sorting, department filters, and group membership rendering.
+
+### C2-C4: Missing `-H ldap://localhost` — FIXED
+**Root cause:** `runDNSCommand()` in `dns_deep.go` was the shared function for all service-account samba-tool commands (sites, FSMO, replication, GPO, SPN, delegation) but did NOT include `-H ldap://localhost`. Without it, samba-tool tries to open the local `sam.ldb` file directly, which fails with "Permission denied".
+**Fix:** Modified `runDNSCommand()` to automatically add `-H ldap://localhost` for all non-DNS commands (`args[0] != "dns"`). DNS commands use positional server args and don't need `-H`. Added `runDNSCommandForHost()` for replication status queries that need to connect to specific remote DCs.
+**Affected commands now fixed:** `sites list`, `sites subnet list`, `fsmo show`, `drs showrepl`, `gpo listall`, `gpo show`, `gpo getlink`, `spn list`, `delegation show`.
+
+### H1: Kerberos page — ALREADY FUNCTIONAL
+The Kerberos page was fully wired to real API endpoints (`/spn/{account}`, `/delegation/{account}`). The read operations (SPN list, delegation show) were failing due to the C2-C4 bug. Now fixed.
+
+### H2: Settings page — FIXED
+**Root cause:** `handleGetSettingsMock` returned hardcoded fake data (wrong DC names, fake TLS paths, etc.).
+**Fix:** Replaced with a handler that reads from `handlerConfig` — returns real DC list, base DN, realm, Kerberos config, session timeout, and scripts path. No secrets exposed.
+
+### M1: OU tree view — FIXED
+**Root cause:** `GetOUTree()` returned `map[string][]string` (just DN strings) but the frontend expected `Record<string, OU[]>` (full OU objects with `name`, `description`, `childCount`). The tree rendered empty because `ou.name` was undefined.
+**Fix:** Changed `GetOUTree()` to return `map[string][]models.OU` with full OU objects.
+
+### M2: OUs missing CN= containers — FIXED
+**Root cause:** `FilterOUs()` only matched `(objectClass=organizationalUnit)`, missing `CN=Users`, `CN=Computers`, `CN=Builtin` etc.
+**Fix:** Updated filter to `(|(objectClass=organizationalUnit)(objectClass=container))`. Updated `OUAttrs` to include `cn` and `objectClass`. Updated `ouFromEntry` to fall back to `cn` attribute when `ou` is empty (containers use CN, not OU).
+
+### L1: Samba-tool warning cleanup — FIXED
+**Root cause:** Raw samba-tool stderr (including `WARNING: Using passwords on command line...`) was shown to users in error messages from `runDNSCommand`.
+**Fix:** Added the same warning-stripping logic from `runSambaTool` (write ops) to `runDNSCommand` and `runDNSCommandForHost` (read ops). Strips `WARNING:`, `Usage:`, and `setproctitle` lines; returns only the meaningful error line.
+
+### Verification
+- `go build ./...` — compiles
+- `go test ./...` — all tests pass
+- `go vet ./...` — clean
+- `npx tsc --noEmit` — no type errors
+- `npm run build` — production build succeeds
+- `GOOS=freebsd GOARCH=amd64 go build` — cross-compile succeeds
+- Route registrations in `routes.go` — unchanged and intact
+
+=== Iteration 2 — 2026-02-18 20:52:55 ===
+Ready to commit and/or deploy whenever you say the word. The fixes are all verified and builds are clean — just need your go-ahead.
+
+=== Iteration 3 — 2026-02-18 20:58:28 ===

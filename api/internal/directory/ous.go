@@ -76,17 +76,17 @@ func (c *Client) GetOU(ctx context.Context, dn string) (*models.OU, error) {
 	return &ou, nil
 }
 
-// GetOUTree returns a hierarchical map of parent DN -> child DNs.
-func (c *Client) GetOUTree(ctx context.Context) (map[string][]string, error) {
+// GetOUTree returns a hierarchical map of parent DN -> child OUs.
+func (c *Client) GetOUTree(ctx context.Context) (map[string][]models.OU, error) {
 	ous, err := c.ListOUs(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	tree := make(map[string][]string)
+	tree := make(map[string][]models.OU)
 	for _, ou := range ous {
 		parent := parentDN(ou.DN)
-		tree[parent] = append(tree[parent], ou.DN)
+		tree[parent] = append(tree[parent], ou)
 	}
 
 	return tree, nil

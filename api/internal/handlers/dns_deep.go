@@ -20,8 +20,10 @@ import (
 // dnsCmdTimeout is the timeout for DNS samba-tool commands.
 const dnsCmdTimeout = 15 * time.Second
 
-// runDNSCommand runs a samba-tool dns command using the service account credentials.
-// Uses the handlers package's sambaTool variable (same one mocked in tests).
+// runDNSCommand runs a samba-tool command using the service account credentials.
+// For non-DNS commands (sites, fsmo, drs, gpo, spn, delegation), it adds
+// -H ldap://localhost to avoid local sam.ldb permission errors.
+// DNS commands use a positional server arg and don't need -H.
 func runDNSCommand(args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dnsCmdTimeout)
 	defer cancel()
@@ -30,6 +32,12 @@ func runDNSCommand(args ...string) (string, error) {
 	password := os.Getenv("SAMBMIN_BIND_PW")
 	if password == "" {
 		password = handlerConfig.BindPW
+	}
+
+	// Non-DNS samba-tool commands need -H ldap://localhost to connect via
+	// LDAP instead of opening the local sam.ldb file (which requires root).
+	if len(args) > 0 && args[0] != "dns" {
+		args = append(args, "-H", "ldap://localhost")
 	}
 
 	if username != "" && password != "" {
@@ -44,8 +52,70 @@ func runDNSCommand(args ...string) (string, error) {
 	slog.Debug("dns: running samba-tool", "args", args[:minInt2(2, len(args))])
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("samba-tool %s: %w: %s",
-			strings.Join(args[:minInt2(2, len(args))], " "), err, stderr.String())
+		errMsg := strings.TrimSpace(stderr.String())
+		if errMsg == "" {
+			errMsg = err.Error()
+		}
+		// Strip samba-tool warnings (e.g., password insecurity, setproctitle)
+		// and extract the meaningful error line.
+		lines := strings.Split(errMsg, "\n")
+		for i := len(lines) - 1; i >= 0; i-- {
+			line := strings.TrimSpace(lines[i])
+			if line != "" && !strings.HasPrefix(line, "WARNING:") && !strings.HasPrefix(line, "Usage:") && !strings.Contains(line, "setproctitle") {
+				errMsg = line
+				break
+			}
+		}
+		return "", fmt.Errorf("samba-tool %s: %s",
+			strings.Join(args[:minInt2(2, len(args))], " "), errMsg)
+	}
+
+	return stdout.String(), nil
+}
+
+// runDNSCommandForHost is like runDNSCommand but connects to a specific DC
+// via -H ldap://<host> instead of the default localhost.
+func runDNSCommandForHost(host string, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dnsCmdTimeout)
+	defer cancel()
+
+	username := usernameFromBindDN(handlerConfig.BindDN)
+	password := os.Getenv("SAMBMIN_BIND_PW")
+	if password == "" {
+		password = handlerConfig.BindPW
+	}
+
+	// Non-DNS commands need -H to specify the target DC.
+	if len(args) > 0 && args[0] != "dns" {
+		args = append(args, "-H", fmt.Sprintf("ldap://%s", host))
+	}
+
+	if username != "" && password != "" {
+		args = append(args, "-U", fmt.Sprintf("%s%%%s", username, password))
+	}
+
+	cmd := exec.CommandContext(ctx, sambaTool, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	slog.Debug("dns: running samba-tool", "host", host, "args", args[:minInt2(2, len(args))])
+
+	if err := cmd.Run(); err != nil {
+		errMsg := strings.TrimSpace(stderr.String())
+		if errMsg == "" {
+			errMsg = err.Error()
+		}
+		lines := strings.Split(errMsg, "\n")
+		for i := len(lines) - 1; i >= 0; i-- {
+			line := strings.TrimSpace(lines[i])
+			if line != "" && !strings.HasPrefix(line, "WARNING:") && !strings.HasPrefix(line, "Usage:") && !strings.Contains(line, "setproctitle") {
+				errMsg = line
+				break
+			}
+		}
+		return "", fmt.Errorf("samba-tool %s: %s",
+			strings.Join(args[:minInt2(2, len(args))], " "), errMsg)
 	}
 
 	return stdout.String(), nil

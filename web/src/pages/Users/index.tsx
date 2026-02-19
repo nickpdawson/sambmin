@@ -203,10 +203,10 @@ export default function Users() {
     if (search) {
       const s = search.toLowerCase();
       return (
-        u.displayName.toLowerCase().includes(s) ||
-        u.samAccountName.toLowerCase().includes(s) ||
-        u.mail.toLowerCase().includes(s) ||
-        u.department.toLowerCase().includes(s)
+        (u.displayName || '').toLowerCase().includes(s) ||
+        (u.samAccountName || '').toLowerCase().includes(s) ||
+        (u.mail || '').toLowerCase().includes(s) ||
+        (u.department || '').toLowerCase().includes(s)
       );
     }
     return true;
@@ -220,7 +220,7 @@ export default function Users() {
       title: 'Name',
       dataIndex: 'displayName',
       key: 'displayName',
-      sorter: (a, b) => a.displayName.localeCompare(b.displayName),
+      sorter: (a, b) => (a.displayName || '').localeCompare(b.displayName || ''),
       render: (_, record) => (
         <div>
           <a onClick={() => { setSelectedUser(record); setDrawerOpen(true); }}>
@@ -245,7 +245,7 @@ export default function Users() {
       title: 'Department',
       dataIndex: 'department',
       key: 'department',
-      filters: [...new Set(users.map((u) => u.department))].map((d) => ({ text: d, value: d })),
+      filters: [...new Set(users.map((u) => u.department || ''))].filter(Boolean).map((d) => ({ text: d, value: d })),
       onFilter: (value, record) => record.department === value,
     },
     {
@@ -284,10 +284,10 @@ export default function Users() {
       responsive: ['xl'],
       render: (_, record) => (
         <Space size={4} wrap>
-          {record.memberOf.slice(0, 2).map((g) => (
+          {(record.memberOf || []).slice(0, 2).map((g) => (
             <Tag key={g} style={{ fontSize: 11 }}>{g}</Tag>
           ))}
-          {record.memberOf.length > 2 && (
+          {(record.memberOf || []).length > 2 && (
             <Tag style={{ fontSize: 11 }}>+{record.memberOf.length - 2}</Tag>
           )}
         </Space>
