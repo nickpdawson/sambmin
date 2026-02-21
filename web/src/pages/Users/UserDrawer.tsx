@@ -140,11 +140,17 @@ function EditableField({ label, value, fieldName, onSave }: {
 
   return (
     <Descriptions.Item label={label}>
-      <Space>
+      <Space size={8} style={{ width: '100%', justifyContent: 'space-between' }}>
         <span>{value || <Text type="secondary">—</Text>}</span>
-        <Tooltip title="Edit">
-          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => setEditing(true)} />
-        </Tooltip>
+        <Button
+          type="link"
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => setEditing(true)}
+          style={{ padding: '0 4px', height: 'auto', lineHeight: 1 }}
+        >
+          Edit
+        </Button>
       </Space>
     </Descriptions.Item>
   );

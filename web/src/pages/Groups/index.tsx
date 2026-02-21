@@ -1,17 +1,19 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Button, Input, Space, Tag, Tabs, Tooltip, Typography, Drawer, Descriptions,
-  Divider, List, notification, Dropdown, Modal, Form,
+  Divider, List, notification, Dropdown, Modal, Form, Select,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, SearchOutlined, TeamOutlined,
   SafetyCertificateOutlined, MailOutlined, CopyOutlined, MoreOutlined,
-  ExclamationCircleOutlined,
+  ExclamationCircleOutlined, DeleteOutlined, UserOutlined,
 } from '@ant-design/icons';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
 import { api } from '../../api/client';
+import { useAuth } from '../../hooks/useAuth';
 import ExportButton from '../../components/ExportButton';
+import CreateGroupDrawer from './CreateGroupDrawer';
 
 const { Text, Title } = Typography;
 
@@ -56,6 +58,7 @@ function scopeLabel(scope: string): string {
 }
 
 export default function Groups() {
+  const { isAdmin } = useAuth();
   const actionRef = useRef<ActionType>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,8 +66,13 @@ export default function Groups() {
   const [search, setSearch] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Group | null>(null);
   const [renameForm] = Form.useForm();
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [selectedMemberDn, setSelectedMemberDn] = useState<string | null>(null);
+  const [addingMember, setAddingMember] = useState(false);
+  const [allUsers, setAllUsers] = useState<{ dn: string; displayName: string; samAccountName: string }[]>([]);
 
   const loadGroups = useCallback(async () => {
     setLoading(true);
@@ -120,6 +128,60 @@ export default function Groups() {
       }
     }
   }, [renameTarget, renameForm, loadGroups]);
+
+  const refreshSelectedGroup = useCallback(async (groupDn: string) => {
+    try {
+      const fresh = await api.get<Group>(`/groups/${encodeURIComponent(groupDn)}`);
+      setSelectedGroup(fresh);
+    } catch { /* keep stale data */ }
+  }, []);
+
+  const handleAddMember = useCallback(async () => {
+    if (!selectedGroup || !selectedMemberDn) return;
+    setAddingMember(true);
+    try {
+      const groupDn = encodeURIComponent(selectedGroup.dn);
+      await api.post(`/groups/${groupDn}/members`, { memberDn: selectedMemberDn });
+      notification.success({ message: `Member added to ${selectedGroup.name}` });
+      setAddMemberOpen(false);
+      setSelectedMemberDn(null);
+      await refreshSelectedGroup(selectedGroup.dn);
+      loadGroups();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to add member';
+      Modal.error({ title: 'Add member failed', content: msg });
+    } finally {
+      setAddingMember(false);
+    }
+  }, [selectedGroup, selectedMemberDn, refreshSelectedGroup, loadGroups]);
+
+  const handleRemoveMember = useCallback(async (memberDN: string) => {
+    if (!selectedGroup) return;
+    Modal.confirm({
+      title: 'Remove Member',
+      icon: <ExclamationCircleOutlined />,
+      content: `Remove ${cnFromDN(memberDN)} from ${selectedGroup.name}?`,
+      okText: 'Remove',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        const gdn = encodeURIComponent(selectedGroup.dn);
+        const mdn = encodeURIComponent(memberDN);
+        await api.delete(`/groups/${gdn}/members/${mdn}`);
+        notification.success({ message: `${cnFromDN(memberDN)} removed` });
+        await refreshSelectedGroup(selectedGroup.dn);
+        loadGroups();
+      },
+    });
+  }, [selectedGroup, refreshSelectedGroup, loadGroups]);
+
+  // Load users when add member modal opens
+  useEffect(() => {
+    if (addMemberOpen && allUsers.length === 0) {
+      api.get<{ users: { dn: string; displayName: string; samAccountName: string }[] }>('/users')
+        .then(data => setAllUsers(data.users))
+        .catch(() => {});
+    }
+  }, [addMemberOpen, allUsers.length]);
 
   useEffect(() => {
     loadGroups();
@@ -213,29 +275,32 @@ export default function Groups() {
       title: '',
       key: 'actions',
       width: 48,
-      render: (_, record) => (
-        <Dropdown
-          menu={{
-            items: [
-              { key: 'view', label: 'View Details' },
-              { key: 'rename', label: 'Rename' },
-              { type: 'divider' },
-              { key: 'delete', label: 'Delete Group', danger: true },
-            ],
-            onClick: ({ key }) => {
-              if (key === 'view') {
-                setSelectedGroup(record);
-                setDrawerOpen(true);
-              } else {
-                handleGroupAction(key, record);
-              }
-            },
-          }}
-          trigger={['click']}
-        >
-          <Button type="text" icon={<MoreOutlined />} size="small" />
-        </Dropdown>
-      ),
+      render: (_, record) => {
+        const viewItem = { key: 'view', label: 'View Details' };
+        const adminItems = isAdmin ? [
+          { key: 'rename', label: 'Rename' },
+          { type: 'divider' as const },
+          { key: 'delete', label: 'Delete Group', danger: true },
+        ] : [];
+        return (
+          <Dropdown
+            menu={{
+              items: [viewItem, ...adminItems],
+              onClick: ({ key }) => {
+                if (key === 'view') {
+                  setSelectedGroup(record);
+                  setDrawerOpen(true);
+                } else {
+                  handleGroupAction(key, record);
+                }
+              },
+            }}
+            trigger={['click']}
+          >
+            <Button type="text" icon={<MoreOutlined />} size="small" />
+          </Dropdown>
+        );
+      },
     },
   ];
 
@@ -292,14 +357,16 @@ export default function Groups() {
             ]}
           />,
           <Button key="refresh" icon={<ReloadOutlined />} onClick={loadGroups} />,
-          <Button
-            key="create"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => notification.info({ message: 'New Group — not yet implemented' })}
-          >
-            New Group
-          </Button>,
+          ...(isAdmin ? [
+            <Button
+              key="create"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setCreateOpen(true)}
+            >
+              New Group
+            </Button>,
+          ] : []),
         ]}
       />
 
@@ -395,18 +462,37 @@ export default function Groups() {
             <Divider />
 
             {/* Members */}
-            <Title level={5} style={{ marginBottom: 12 }}>
-              Members ({selectedGroup.members.length})
-            </Title>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Title level={5} style={{ margin: 0 }}>
+                Members ({selectedGroup.members.length})
+              </Title>
+              {isAdmin && (
+                <Button size="small" icon={<PlusOutlined />} onClick={() => setAddMemberOpen(true)}>
+                  Add Member
+                </Button>
+              )}
+            </div>
             {selectedGroup.members.length > 0 ? (
               <List
                 size="small"
                 bordered
                 dataSource={selectedGroup.members}
                 renderItem={(memberDN) => (
-                  <List.Item>
+                  <List.Item
+                    actions={isAdmin ? [
+                      <Tooltip key="remove" title="Remove from group">
+                        <Button
+                          type="text"
+                          size="small"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleRemoveMember(memberDN)}
+                        />
+                      </Tooltip>,
+                    ] : undefined}
+                  >
                     <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                      <Text>{cnFromDN(memberDN)}</Text>
+                      <Text><UserOutlined style={{ marginRight: 6 }} />{cnFromDN(memberDN)}</Text>
                       <Text type="secondary" style={{ fontSize: 11, ...monoStyle }}>
                         {memberDN}
                       </Text>
@@ -439,6 +525,12 @@ export default function Groups() {
         )}
       </Drawer>
 
+      <CreateGroupDrawer
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSuccess={() => { setCreateOpen(false); loadGroups(); }}
+      />
+
       {/* Rename Group Modal */}
       <Modal
         title={`Rename Group — ${renameTarget?.name || ''}`}
@@ -452,6 +544,44 @@ export default function Groups() {
             <Input />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Add Member Modal */}
+      <Modal
+        title={`Add Member to ${selectedGroup?.name || ''}`}
+        open={addMemberOpen}
+        onCancel={() => { setAddMemberOpen(false); setSelectedMemberDn(null); }}
+        onOk={handleAddMember}
+        okText="Add"
+        confirmLoading={addingMember}
+        okButtonProps={{ disabled: !selectedMemberDn }}
+      >
+        <Select
+          showSearch
+          placeholder="Search by name or username..."
+          style={{ width: '100%' }}
+          value={selectedMemberDn}
+          onChange={(v) => setSelectedMemberDn(v)}
+          filterOption={(input, option) => {
+            const s = input.toLowerCase();
+            const label = (option?.label ?? '').toLowerCase();
+            const desc = ((option as any)?.desc ?? '').toLowerCase();
+            return label.includes(s) || desc.includes(s);
+          }}
+          optionRender={(option) => (
+            <Space direction="vertical" size={0}>
+              <span>{(option as any).data?.label}</span>
+              <Text type="secondary" style={{ fontSize: 11, ...monoStyle }}>{(option as any).data?.desc}</Text>
+            </Space>
+          )}
+          options={(allUsers || [])
+            .filter(u => !selectedGroup?.members.includes(u.dn))
+            .map(u => ({
+              label: u.displayName || u.samAccountName,
+              value: u.dn,
+              desc: u.samAccountName,
+            }))}
+        />
       </Modal>
     </Space>
   );

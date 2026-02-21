@@ -14,6 +14,8 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
+import { useAuth } from '../../hooks/useAuth';
+import SelfServiceDashboard from './SelfServiceDashboard';
 
 const { Title, Text } = Typography;
 
@@ -66,7 +68,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export default function Dashboard() {
+function AdminDashboard() {
   const navigate = useNavigate();
   const [dcs, setDCs] = useState<DCStatus[]>([]);
   const [alerts, setAlerts] = useState<DashboardAlert[]>([]);
@@ -259,4 +261,14 @@ export default function Dashboard() {
       )}
     </Space>
   );
+}
+
+export default function Dashboard() {
+  const { isAdmin } = useAuth();
+
+  if (!isAdmin) {
+    return <SelfServiceDashboard />;
+  }
+
+  return <AdminDashboard />;
 }
