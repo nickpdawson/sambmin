@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Layout, Menu, Breadcrumb, Typography, Button, Tooltip } from 'antd';
 import {
   DashboardOutlined,
@@ -40,60 +40,86 @@ interface AppLayoutProps {
 
 type MenuItem = Required<MenuProps>['items'][number];
 
-const menuItems: MenuItem[] = [
-  {
-    key: 'overview',
-    type: 'group',
-    label: 'OVERVIEW',
-    children: [
-      { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
-    ],
-  },
-  {
-    key: 'directory',
-    type: 'group',
-    label: 'DIRECTORY',
-    children: [
-      { key: '/users', icon: <UserOutlined />, label: 'Users' },
-      { key: '/groups', icon: <TeamOutlined />, label: 'Groups' },
-      { key: '/computers', icon: <DesktopOutlined />, label: 'Computers' },
-      { key: '/contacts', icon: <ContactsOutlined />, label: 'Contacts' },
-      { key: '/ous', icon: <ApartmentOutlined />, label: 'Organizational Units' },
-      { key: '/search', icon: <FileSearchOutlined />, label: 'Advanced Search' },
-    ],
-  },
-  {
-    key: 'infrastructure',
-    type: 'group',
-    label: 'INFRASTRUCTURE',
-    children: [
-      { key: '/dns', icon: <GlobalOutlined />, label: 'DNS' },
-      { key: '/sites', icon: <CloudServerOutlined />, label: 'Sites & Services' },
-      { key: '/replication', icon: <NodeIndexOutlined />, label: 'Replication' },
-    ],
-  },
-  {
-    key: 'policy',
-    type: 'group',
-    label: 'POLICY & SECURITY',
-    children: [
-      { key: '/gpo', icon: <SafetyCertificateOutlined />, label: 'Group Policy' },
-      { key: '/password-policy', icon: <LockOutlined />, label: 'Password Policies' },
-      { key: '/kerberos', icon: <KeyOutlined />, label: 'Kerberos' },
-      { key: '/fsmo', icon: <CrownOutlined />, label: 'FSMO Roles' },
-      { key: '/schema', icon: <DatabaseOutlined />, label: 'Schema' },
-    ],
-  },
-  {
-    key: 'system',
-    type: 'group',
-    label: 'SYSTEM',
-    children: [
-      { key: '/audit', icon: <AuditOutlined />, label: 'Audit Log' },
-      { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
-    ],
-  },
-];
+function getMenuItems(isAdmin: boolean): MenuItem[] {
+  if (!isAdmin) {
+    return [
+      {
+        key: 'account',
+        type: 'group',
+        label: 'MY ACCOUNT',
+        children: [
+          { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
+        ],
+      },
+      {
+        key: 'directory',
+        type: 'group',
+        label: 'DIRECTORY',
+        children: [
+          { key: '/users', icon: <UserOutlined />, label: 'Users' },
+          { key: '/groups', icon: <TeamOutlined />, label: 'Groups' },
+          { key: '/dns', icon: <GlobalOutlined />, label: 'DNS' },
+          { key: '/search', icon: <FileSearchOutlined />, label: 'Search' },
+        ],
+      },
+    ];
+  }
+
+  return [
+    {
+      key: 'overview',
+      type: 'group',
+      label: 'OVERVIEW',
+      children: [
+        { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
+      ],
+    },
+    {
+      key: 'directory',
+      type: 'group',
+      label: 'DIRECTORY',
+      children: [
+        { key: '/users', icon: <UserOutlined />, label: 'Users' },
+        { key: '/groups', icon: <TeamOutlined />, label: 'Groups' },
+        { key: '/computers', icon: <DesktopOutlined />, label: 'Computers' },
+        { key: '/contacts', icon: <ContactsOutlined />, label: 'Contacts' },
+        { key: '/ous', icon: <ApartmentOutlined />, label: 'Organizational Units' },
+        { key: '/search', icon: <FileSearchOutlined />, label: 'Advanced Search' },
+      ],
+    },
+    {
+      key: 'infrastructure',
+      type: 'group',
+      label: 'INFRASTRUCTURE',
+      children: [
+        { key: '/dns', icon: <GlobalOutlined />, label: 'DNS' },
+        { key: '/sites', icon: <CloudServerOutlined />, label: 'Sites & Services' },
+        { key: '/replication', icon: <NodeIndexOutlined />, label: 'Replication' },
+      ],
+    },
+    {
+      key: 'policy',
+      type: 'group',
+      label: 'POLICY & SECURITY',
+      children: [
+        { key: '/gpo', icon: <SafetyCertificateOutlined />, label: 'Group Policy' },
+        { key: '/password-policy', icon: <LockOutlined />, label: 'Password Policies' },
+        { key: '/kerberos', icon: <KeyOutlined />, label: 'Kerberos' },
+        { key: '/fsmo', icon: <CrownOutlined />, label: 'FSMO Roles' },
+        { key: '/schema', icon: <DatabaseOutlined />, label: 'Schema' },
+      ],
+    },
+    {
+      key: 'system',
+      type: 'group',
+      label: 'SYSTEM',
+      children: [
+        { key: '/audit', icon: <AuditOutlined />, label: 'Audit Log' },
+        { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
+      ],
+    },
+  ];
+}
 
 const pathLabels: Record<string, string> = {
   '/': 'Dashboard',
@@ -120,7 +146,9 @@ export default function AppLayout({ isDark, onToggleTheme }: AppLayoutProps) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
+
+  const menuItems = useMemo(() => getMenuItems(isAdmin), [isAdmin]);
 
   // Cmd+K / Ctrl+K keyboard shortcut
   useEffect(() => {
@@ -275,6 +303,7 @@ export default function AppLayout({ isDark, onToggleTheme }: AppLayoutProps) {
       <CommandPalette
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
+        isAdmin={isAdmin}
       />
     </Layout>
   );

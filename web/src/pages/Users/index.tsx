@@ -11,6 +11,7 @@ import {
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
 import { api } from '../../api/client';
+import { useAuth } from '../../hooks/useAuth';
 import ExportButton from '../../components/ExportButton';
 import UserDrawer from './UserDrawer';
 import CreateUserDrawer from './CreateUserDrawer';
@@ -68,6 +69,7 @@ function timeAgo(iso: string): string {
 }
 
 export default function Users() {
+  const { isAdmin } = useAuth();
   const actionRef = useRef<ActionType>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -297,35 +299,38 @@ export default function Users() {
       title: '',
       key: 'actions',
       width: 48,
-      render: (_, record) => (
-        <Dropdown
-          menu={{
-            items: [
-              { key: 'view', label: 'View Details' },
-              { key: 'rename', label: 'Rename' },
-              { key: 'reset', label: 'Reset Password' },
-              { type: 'divider' },
-              ...(record.lockedOut ? [{ key: 'unlock', label: 'Unlock Account' }] : []),
-              record.enabled
-                ? { key: 'disable', label: 'Disable Account', danger: true }
-                : { key: 'enable', label: 'Enable Account' },
-              { type: 'divider' },
-              { key: 'delete', label: 'Delete User', danger: true },
-            ],
-            onClick: ({ key }) => {
-              if (key === 'view') {
-                setSelectedUser(record);
-                setDrawerOpen(true);
-              } else {
-                handleUserAction(key, record);
-              }
-            },
-          }}
-          trigger={['click']}
-        >
-          <Button type="text" icon={<MoreOutlined />} size="small" />
-        </Dropdown>
-      ),
+      render: (_, record) => {
+        const viewItem = { key: 'view', label: 'View Details' };
+        const adminItems = isAdmin ? [
+          { key: 'rename', label: 'Rename' },
+          { key: 'reset', label: 'Reset Password' },
+          { type: 'divider' as const },
+          ...(record.lockedOut ? [{ key: 'unlock', label: 'Unlock Account' }] : []),
+          record.enabled
+            ? { key: 'disable', label: 'Disable Account', danger: true }
+            : { key: 'enable', label: 'Enable Account' },
+          { type: 'divider' as const },
+          { key: 'delete', label: 'Delete User', danger: true },
+        ] : [];
+        return (
+          <Dropdown
+            menu={{
+              items: [viewItem, ...adminItems],
+              onClick: ({ key }) => {
+                if (key === 'view') {
+                  setSelectedUser(record);
+                  setDrawerOpen(true);
+                } else {
+                  handleUserAction(key, record);
+                }
+              },
+            }}
+            trigger={['click']}
+          >
+            <Button type="text" icon={<MoreOutlined />} size="small" />
+          </Dropdown>
+        );
+      },
     },
   ];
 
@@ -359,10 +364,10 @@ export default function Users() {
           showSizeChanger: true,
           showTotal: (total) => `${total} users`,
         }}
-        rowSelection={{
+        rowSelection={isAdmin ? {
           selectedRowKeys,
           onChange: (keys) => setSelectedRowKeys(keys as string[]),
-        }}
+        } : undefined}
         toolBarRender={() => [
           <Input
             key="search"
@@ -389,26 +394,32 @@ export default function Users() {
             ]}
           />,
           <Button key="refresh" icon={<ReloadOutlined />} onClick={loadUsers} />,
-          <Button key="create" type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-            New User
-          </Button>,
+          ...(isAdmin ? [
+            <Button key="create" type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+              New User
+            </Button>,
+          ] : []),
         ]}
         headerTitle={
           selectedRowKeys.length > 0 ? (
             <Space>
               <Text>{selectedRowKeys.length} selected</Text>
               <Button size="small" onClick={async () => {
+                let ok = 0, fail = 0;
                 for (const dn of selectedRowKeys) {
-                  try { await api.post(`/users/${encodeURIComponent(dn)}/enable`); } catch { /* continue */ }
+                  try { await api.post(`/users/${encodeURIComponent(dn)}/enable`); ok++; } catch { fail++; }
                 }
-                notification.success({ message: `${selectedRowKeys.length} user(s) enabled` });
+                if (ok > 0) notification.success({ message: `${ok} user(s) enabled` });
+                if (fail > 0) notification.error({ message: `${fail} user(s) failed to enable` });
                 setSelectedRowKeys([]); loadUsers();
               }}>Enable</Button>
               <Button size="small" onClick={async () => {
+                let ok = 0, fail = 0;
                 for (const dn of selectedRowKeys) {
-                  try { await api.post(`/users/${encodeURIComponent(dn)}/disable`); } catch { /* continue */ }
+                  try { await api.post(`/users/${encodeURIComponent(dn)}/disable`); ok++; } catch { fail++; }
                 }
-                notification.success({ message: `${selectedRowKeys.length} user(s) disabled` });
+                if (ok > 0) notification.success({ message: `${ok} user(s) disabled` });
+                if (fail > 0) notification.error({ message: `${fail} user(s) failed to disable` });
                 setSelectedRowKeys([]); loadUsers();
               }}>Disable</Button>
               <Button size="small" danger onClick={() => {
@@ -419,10 +430,12 @@ export default function Users() {
                   okText: 'Delete All',
                   okButtonProps: { danger: true },
                   onOk: async () => {
+                    let ok = 0, fail = 0;
                     for (const dn of selectedRowKeys) {
-                      try { await api.delete(`/users/${encodeURIComponent(dn)}`); } catch { /* continue */ }
+                      try { await api.delete(`/users/${encodeURIComponent(dn)}`); ok++; } catch { fail++; }
                     }
-                    notification.success({ message: `${selectedRowKeys.length} user(s) deleted` });
+                    if (ok > 0) notification.success({ message: `${ok} user(s) deleted` });
+                    if (fail > 0) notification.error({ message: `${fail} user(s) failed to delete` });
                     setSelectedRowKeys([]); loadUsers();
                   },
                 });

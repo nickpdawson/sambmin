@@ -8,8 +8,21 @@ interface User {
   expires?: string;
 }
 
+// Groups that grant admin access to the full management UI
+const ADMIN_GROUPS = ['DOMAIN ADMINS', 'ENTERPRISE ADMINS', 'SCHEMA ADMINS', 'ACCOUNT OPERATORS'];
+
+function checkIsAdmin(groups: string[] | undefined): boolean {
+  if (!groups || groups.length === 0) return false;
+  return groups.some((g) => {
+    const upper = g.toUpperCase();
+    // Match full DNs like "CN=Domain Admins,CN=Users,DC=..." or plain names like "Domain Admins"
+    return ADMIN_GROUPS.some((ag) => upper.includes(`CN=${ag},`) || upper === ag);
+  });
+}
+
 interface AuthContextType {
   user: User | null;
+  isAdmin: boolean;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -43,8 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const isAdmin = checkIsAdmin(user?.groups);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
