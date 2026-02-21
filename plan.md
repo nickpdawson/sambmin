@@ -630,26 +630,64 @@ sambmin/
 - [x] Verified: user create, enable, disable work end-to-end
 - [x] Verified: login/logout works via LDAP bind against Samba DC
 - [x] Error dialogs switched to Modal.error (unmissable vs corner notifications)
-- [ ] Verify user delete works end-to-end
-- [ ] Verify DNS record create/update/delete work end-to-end
-- [ ] Verify OU create/delete work end-to-end
-- [ ] Verify group create/delete/member management works
+- [x] Verified: user delete works end-to-end
+- [x] Verified: DNS record create/update/delete work end-to-end
+- [x] Verified: OU create/delete work end-to-end
+- [x] Verified: group create/delete/member management works
+
+**M14: Replication & Infrastructure** (2026-02-18)
+- [x] `samba-tool drs showrepl` integration — requires Domain Admin (service account gets WERR_DS_DRA_ACCESS_DENIED)
+- [x] Replication topology and status endpoints (auth required, use user session credentials)
+- [x] DRS commands use DCE/RPC, not LDAP — skip `-H ldap://...` flag
+- [x] Sites & Services page with site topology
+- [x] FSMO role display
+- [x] GPO list view
+
+**M15: Polish Pass** (2026-02-18)
+- [x] User attribute editing in detail drawer (inline edit via LDAP modify)
+- [x] Password policy display
+- [x] Contact management
+- [x] Advanced search
+- [x] Audit log viewer
+- [x] 221 tests passing
+
+**M16–M20: Bug Fixes & Deployment** (2026-02-18–19)
+- [x] Fix `samba-tool -H ldap://localhost` for all non-DRS/domain commands
+- [x] Fix `handleMeImpl` auth: `SessionFromRequest(r)` not `SessionFromContext`
+- [x] Fix `infrastructure.go` variable shadowing (`r` for both `dcReplStatus` and `*http.Request`)
+- [x] Fix `respondJSON` silent marshaling failures (check `json.Encode()` error)
+- [x] Fix AD timestamp sentinel `9223372036854775807` → zero time (JSON marshal year > 9999)
+- [x] Fix DNS forwarder parsing (skip empty/NULL/[]/{}  values)
+- [x] Cleaner samba-tool error extraction (skip Python traceback, `^^^^`, `File ` lines)
+- [x] Deployed to bridger.dzsec.net, live at https://sambmin.dzsec.net
+
+**M21: Admin/Self-Service Split + Feature Pages** (2026-02-20–21)
+- [x] Role detection: `isAdmin` computed from session AD group membership (Domain Admins, Enterprise Admins, Schema Admins, Account Operators)
+- [x] Conditional navigation: regular users see My Account + Directory; admins see full sidebar
+- [x] Self-service dashboard: profile card, password change, account status, group memberships
+- [x] Command palette filtered by role
+- [x] Write action buttons hidden for non-admin users (backend still enforces via AD ACLs)
+- [x] Kerberos page rewrite: 5 tabs (Policy, Accounts, Keytab Export, SPN Management, Delegation)
+- [x] Keytab export: multi-principal support with graceful SAM permission fallback (shows CLI commands)
+- [x] Schema browser: classes (264) and attributes (1473) with search, filters, detail drawers
+- [x] OUs custom DirectoryTree: replaced broken AntD Tree with pure React recursive component
+- [x] Full OU tree shows all objects inside containers (users, groups, computers) with type tags
+- [x] Client accessors: `BaseDN()`, `GetConn()`, `PutConn()` for Kerberos/Schema handlers
+- [x] OU system container filtering (GUID-named, infrastructure CNs hidden)
+- Commits: `378434e`, `03f7606`, `c240953`
 
 ### Next Up
 
-**M14: Replication & Infrastructure**
-- [ ] D3.js replication topology visualization
-- [ ] `samba-tool drs showrepl` integration for real replication status
-- [ ] Sites & Services management
-- [ ] FSMO role display and transfer workflow
+**Settings Persistence**
+- [ ] Backend save endpoints for settings (currently entirely mock)
+- [ ] LDAP connection settings, TLS config persistence
 
-**M15: Polish & Hardening**
-- [ ] PostgreSQL integration for audit log, session storage, app config
+**Remaining Polish**
+- [ ] Tree search filtering
+- [ ] CSV/JSON export from list views
 - [ ] Saved searches / bookmarks
 - [ ] Customizable dashboard layout
-- [ ] CSV/JSON export from all list views
-- [ ] User attribute editing in detail drawer (inline edit)
-- [ ] Group membership visualization
+- [ ] Group membership visualization (D3.js)
 
 ---
 
