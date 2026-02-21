@@ -47,3 +47,10 @@ pgdata/
 # Build artifacts
 build/
 dist/
+
+# Claude Code / Ralph Loop
+.claude/
+RALPH-*.md
+ralph-*.log
+ralph-*.md
+sambmin-ralph.sh
