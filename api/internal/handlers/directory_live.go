@@ -88,3 +88,40 @@ func handleOUTreeLive(w http.ResponseWriter, r *http.Request) {
 		"tree": tree,
 	})
 }
+
+// handleOUTreeFullLive returns the complete OU tree with all child objects.
+// GET /api/ous/tree/full
+func handleOUTreeFullLive(w http.ResponseWriter, r *http.Request) {
+	tree, contents, err := dirClient.GetFullTree(r.Context())
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get full tree: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]any{
+		"tree":     tree,
+		"contents": contents,
+	})
+}
+
+// handleOUContentsLive returns the direct child objects of an OU.
+// GET /api/ous/{dn}/contents
+func handleOUContentsLive(w http.ResponseWriter, r *http.Request) {
+	dn := r.PathValue("dn")
+	if dn == "" {
+		respondError(w, http.StatusBadRequest, "OU DN required")
+		return
+	}
+
+	children, err := dirClient.ListOUContents(r.Context(), dn)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to list OU contents: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]any{
+		"children": children,
+		"total":    len(children),
+		"dn":       dn,
+	})
+}

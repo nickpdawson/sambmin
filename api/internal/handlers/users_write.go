@@ -31,8 +31,11 @@ func runSambaTool(ctx context.Context, sess *auth.Session, args ...string) (stri
 		return "", fmt.Errorf("get session credentials: %w", err)
 	}
 
-	// Force remote LDAP connection (avoids local LDB permission issues) and append credentials
-	args = append(args, "-H", "ldap://localhost", "-U", fmt.Sprintf("%s%%%s", sess.Username, password))
+	// DRS and domain commands use DCE/RPC, not LDAP — skip -H flag for them
+	if len(args) > 0 && args[0] != "drs" && args[0] != "domain" {
+		args = append(args, "-H", "ldap://localhost")
+	}
+	args = append(args, "-U", fmt.Sprintf("%s%%%s", sess.Username, password))
 
 	cmd := exec.CommandContext(ctx, sambaTool, args...)
 	var stdout, stderr bytes.Buffer
@@ -47,14 +50,22 @@ func runSambaTool(ctx context.Context, sess *auth.Session, args ...string) (stri
 		if errMsg == "" {
 			errMsg = err.Error()
 		}
-		// Extract the meaningful error line (last non-empty line, skip warnings)
+		// Extract the meaningful error line (last non-empty line, skip noise)
 		lines := strings.Split(errMsg, "\n")
 		for i := len(lines) - 1; i >= 0; i-- {
 			line := strings.TrimSpace(lines[i])
-			if line != "" && !strings.HasPrefix(line, "WARNING:") && !strings.HasPrefix(line, "Usage:") {
-				errMsg = line
-				break
+			if line == "" {
+				continue
 			}
+			// Skip Python traceback noise, warnings, usage hints
+			if strings.HasPrefix(line, "WARNING:") || strings.HasPrefix(line, "Usage:") {
+				continue
+			}
+			if strings.HasPrefix(line, "File ") || strings.HasPrefix(line, "^^^^") || strings.Trim(line, "^ ") == "" {
+				continue
+			}
+			errMsg = line
+			break
 		}
 		return "", fmt.Errorf("%s", errMsg)
 	}

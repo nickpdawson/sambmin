@@ -118,6 +118,8 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client) {
 	if dir != nil {
 		mux.HandleFunc("GET /api/ous", handleListOUsLive)
 		mux.HandleFunc("GET /api/ous/tree", handleOUTreeLive)
+		mux.HandleFunc("GET /api/ous/tree/full", handleOUTreeFullLive)
+		mux.HandleFunc("GET /api/ous/{dn}/contents", handleOUContentsLive)
 	} else {
 		mux.HandleFunc("GET /api/ous", handleListOUs)
 		mux.HandleFunc("GET /api/ous/tree", handleOUTree)
@@ -220,13 +222,28 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client) {
 	mux.HandleFunc("GET /api/delegation/{account}", handleGetDelegation)
 	mux.HandleFunc("POST /api/delegation/{account}/service", handleAddDelegationService)
 	mux.HandleFunc("DELETE /api/delegation/{account}/service", handleRemoveDelegationService)
+
+	// Kerberos
+	if dir != nil {
+		mux.HandleFunc("GET /api/kerberos/policy", handleKerberosPolicy)
+		mux.HandleFunc("GET /api/kerberos/accounts", handleKerberosAccounts)
+	}
+	mux.HandleFunc("POST /api/kerberos/keytab", handleExportKeytab)
+
+	// Schema Browser
+	if dir != nil {
+		mux.HandleFunc("GET /api/schema/classes", handleListSchemaClasses)
+		mux.HandleFunc("GET /api/schema/attributes", handleListSchemaAttributes)
+	}
 }
 
 // respondJSON writes a JSON response with status code
 func respondJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("respondJSON: failed to encode response", "error", err)
+	}
 }
 
 // respondError writes a JSON error response

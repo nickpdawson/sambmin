@@ -452,12 +452,14 @@ func ParseServerInfo(output string, server string) *models.DNSServerInfo {
 				info.AllowUpdate = "none"
 			}
 		case "aipForwarders":
-			if val != "" && !strings.EqualFold(val, "NULL") {
+			if val != "" && !strings.EqualFold(val, "NULL") && val != "[]" && val != "{}" {
 				for _, f := range strings.Fields(val) {
 					// Strip "ip4:" or "ip6:" prefix
 					f = strings.TrimPrefix(f, "ip4:")
 					f = strings.TrimPrefix(f, "ip6:")
-					info.Forwarders = append(info.Forwarders, f)
+					if f != "" && f != "[]" && f != "{}" {
+						info.Forwarders = append(info.Forwarders, f)
+					}
 				}
 			}
 		}
