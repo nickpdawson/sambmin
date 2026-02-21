@@ -36,7 +36,8 @@ func runDNSCommand(args ...string) (string, error) {
 
 	// Non-DNS samba-tool commands need -H ldap://localhost to connect via
 	// LDAP instead of opening the local sam.ldb file (which requires root).
-	if len(args) > 0 && args[0] != "dns" {
+	// Exception: "drs" commands use DCE/RPC, not LDAP, and don't accept -H.
+	if len(args) > 0 && args[0] != "dns" && args[0] != "drs" {
 		args = append(args, "-H", "ldap://localhost")
 	}
 
@@ -56,15 +57,18 @@ func runDNSCommand(args ...string) (string, error) {
 		if errMsg == "" {
 			errMsg = err.Error()
 		}
-		// Strip samba-tool warnings (e.g., password insecurity, setproctitle)
-		// and extract the meaningful error line.
+		// Strip samba-tool warnings, Python traceback noise, and extract meaningful error.
 		lines := strings.Split(errMsg, "\n")
 		for i := len(lines) - 1; i >= 0; i-- {
 			line := strings.TrimSpace(lines[i])
-			if line != "" && !strings.HasPrefix(line, "WARNING:") && !strings.HasPrefix(line, "Usage:") && !strings.Contains(line, "setproctitle") {
-				errMsg = line
-				break
+			if line == "" || strings.HasPrefix(line, "WARNING:") || strings.HasPrefix(line, "Usage:") || strings.Contains(line, "setproctitle") {
+				continue
 			}
+			if strings.HasPrefix(line, "File ") || strings.HasPrefix(line, "^^^^") || strings.Trim(line, "^ ") == "" {
+				continue
+			}
+			errMsg = line
+			break
 		}
 		return "", fmt.Errorf("samba-tool %s: %s",
 			strings.Join(args[:minInt2(2, len(args))], " "), errMsg)
@@ -86,7 +90,13 @@ func runDNSCommandForHost(host string, args ...string) (string, error) {
 	}
 
 	// Non-DNS commands need -H to specify the target DC.
-	if len(args) > 0 && args[0] != "dns" {
+	// Exception: "drs" commands use DCE/RPC and take the DC as a positional arg.
+	if len(args) > 0 && args[0] == "drs" {
+		// Insert host after the subcommand: drs showrepl <host>
+		if len(args) >= 2 {
+			args = append(args[:2], append([]string{host}, args[2:]...)...)
+		}
+	} else if len(args) > 0 && args[0] != "dns" {
 		args = append(args, "-H", fmt.Sprintf("ldap://%s", host))
 	}
 
@@ -109,10 +119,14 @@ func runDNSCommandForHost(host string, args ...string) (string, error) {
 		lines := strings.Split(errMsg, "\n")
 		for i := len(lines) - 1; i >= 0; i-- {
 			line := strings.TrimSpace(lines[i])
-			if line != "" && !strings.HasPrefix(line, "WARNING:") && !strings.HasPrefix(line, "Usage:") && !strings.Contains(line, "setproctitle") {
-				errMsg = line
-				break
+			if line == "" || strings.HasPrefix(line, "WARNING:") || strings.HasPrefix(line, "Usage:") || strings.Contains(line, "setproctitle") {
+				continue
 			}
+			if strings.HasPrefix(line, "File ") || strings.HasPrefix(line, "^^^^") || strings.Trim(line, "^ ") == "" {
+				continue
+			}
+			errMsg = line
+			break
 		}
 		return "", fmt.Errorf("samba-tool %s: %s",
 			strings.Join(args[:minInt2(2, len(args))], " "), errMsg)

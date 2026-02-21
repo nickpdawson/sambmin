@@ -32,6 +32,21 @@ func (c *Client) Pool() *ldap.Pool {
 	return c.pool
 }
 
+// BaseDN returns the base distinguished name.
+func (c *Client) BaseDN() string {
+	return c.baseDN
+}
+
+// GetConn acquires a connection from the pool.
+func (c *Client) GetConn(ctx context.Context) (*ldap.Conn, error) {
+	return c.pool.Get(ctx)
+}
+
+// PutConn returns a connection to the pool.
+func (c *Client) PutConn(conn *ldap.Conn) {
+	c.pool.Put(conn)
+}
+
 // Health tests LDAP connectivity by performing a base-level search.
 func (c *Client) Health(ctx context.Context) error {
 	conn, err := c.pool.Get(ctx)
@@ -305,6 +320,11 @@ func parseADTimestamp(s string) time.Time {
 	if s == "" || s == "0" {
 		return time.Time{}
 	}
+	// AD "never expires" sentinel: max int64 (0x7FFFFFFFFFFFFFFF)
+	// Must check before FILETIME conversion — produces year ~29B which breaks JSON marshaling
+	if s == "9223372036854775807" {
+		return time.Time{}
+	}
 	// AD generalized time: 20240115090000.0Z
 	for _, layout := range []string{
 		"20060102150405.0Z",
@@ -322,7 +342,12 @@ func parseADTimestamp(s string) time.Time {
 		const epochDiff = 11644473600 // seconds between 1601 and 1970
 		unixSec := (n / ticksPerSecond) - epochDiff
 		if unixSec > 0 {
-			return time.Unix(unixSec, 0)
+			t := time.Unix(unixSec, 0)
+			// Guard against years outside JSON-safe range (0-9999)
+			if t.Year() > 9999 || t.Year() < 0 {
+				return time.Time{}
+			}
+			return t
 		}
 	}
 	return time.Time{}

@@ -19,12 +19,17 @@ import (
 
 // handleReplicationTopology returns the replication topology with links between DCs.
 // GET /api/replication/topology
-func handleReplicationTopologyLive(w http.ResponseWriter, _ *http.Request) {
-	output, err := runDNSCommand("drs", "showrepl", "--json")
+func handleReplicationTopologyLive(w http.ResponseWriter, r *http.Request) {
+	sess := requireSession(w, r)
+	if sess == nil {
+		return
+	}
+
+	output, err := runSambaTool(r.Context(), sess, "drs", "showrepl", "--json")
 	if err != nil {
 		slog.Warn("replication: showrepl --json failed, falling back to text", "error", err)
 		// Fallback to text output
-		output, err = runDNSCommand("drs", "showrepl")
+		output, err = runSambaTool(r.Context(), sess, "drs", "showrepl")
 		if err != nil {
 			slog.Error("replication: showrepl failed", "error", err)
 			respondError(w, http.StatusInternalServerError, "failed to get replication status: "+err.Error())
@@ -51,7 +56,12 @@ func handleReplicationTopologyLive(w http.ResponseWriter, _ *http.Request) {
 
 // handleReplicationStatus returns per-DC replication status summary.
 // GET /api/replication/status
-func handleReplicationStatusLive(w http.ResponseWriter, _ *http.Request) {
+func handleReplicationStatusLive(w http.ResponseWriter, r *http.Request) {
+	sess := requireSession(w, r)
+	if sess == nil {
+		return
+	}
+
 	type dcReplStatus struct {
 		DC             string    `json:"dc"`
 		Address        string    `json:"address"`
@@ -86,29 +96,29 @@ func handleReplicationStatusLive(w http.ResponseWriter, _ *http.Request) {
 			Site     string
 		}) {
 			defer wg.Done()
-			r := dcReplStatus{
+			rs := dcReplStatus{
 				DC:      dc.Hostname,
 				Address: dc.Address,
 				Site:    dc.Site,
 			}
 
-			output, err := runDNSCommandForHost(dc.Address, "drs", "showrepl")
+			output, err := runSambaTool(r.Context(), sess, "drs", "showrepl", dc.Address)
 			if err != nil {
-				r.Error = err.Error()
+				rs.Error = err.Error()
 				mu.Lock()
-				results = append(results, r)
+				results = append(results, rs)
 				mu.Unlock()
 				return
 			}
 
-			r.Reachable = true
+			rs.Reachable = true
 			in, out := countReplPartners(output)
-			r.InboundOK = in
-			r.OutboundOK = out
-			r.LastSuccess = time.Now() // Placeholder — would parse from output
+			rs.InboundOK = in
+			rs.OutboundOK = out
+			rs.LastSuccess = time.Now() // Placeholder — would parse from output
 
 			mu.Lock()
-			results = append(results, r)
+			results = append(results, rs)
 			mu.Unlock()
 		}(struct {
 			Hostname string

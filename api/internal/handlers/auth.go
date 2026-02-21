@@ -111,7 +111,7 @@ func handleLogoutImpl(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleMeImpl(w http.ResponseWriter, r *http.Request) {
-	sess := SessionFromContext(r.Context())
+	sess := SessionFromRequest(r)
 	if sess == nil {
 		respondError(w, http.StatusUnauthorized, "not authenticated")
 		return
