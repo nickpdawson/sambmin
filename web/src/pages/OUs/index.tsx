@@ -1,19 +1,22 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   Button, Input, Space, Typography, Drawer, Descriptions, Divider,
-  Tooltip, Dropdown, Segmented, Tree, notification, Tag, Badge,
+  Tooltip, Dropdown, Segmented, notification, Tag,
   Modal, Form, Select,
 } from 'antd';
 import {
   ApartmentOutlined, FolderOutlined, CopyOutlined,
   PlusOutlined, ReloadOutlined, SearchOutlined, MoreOutlined,
   DeleteOutlined, EditOutlined, FolderOpenOutlined,
-  ExclamationCircleOutlined,
+  ExclamationCircleOutlined, UserOutlined, TeamOutlined,
+  DesktopOutlined, ContactsOutlined, ContainerOutlined,
+  RightOutlined, DownOutlined,
 } from '@ant-design/icons';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
-import type { DataNode } from 'antd/es/tree';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
+import { useAuth } from '../../hooks/useAuth';
 
 const { Text, Title } = Typography;
 
@@ -28,7 +31,44 @@ interface OU {
   childCount: number;
 }
 
+interface OUChild {
+  dn: string;
+  name: string;
+  objectClass: string;
+  description?: string;
+}
+
+interface TreeNode {
+  dn: string;
+  name: string;
+  objectClass: string;
+  description?: string;
+}
+
 type ViewMode = 'list' | 'tree';
+
+const childTypeIcon = (cls: string) => {
+  switch (cls) {
+    case 'user': return <UserOutlined />;
+    case 'group': return <TeamOutlined />;
+    case 'computer': return <DesktopOutlined />;
+    case 'contact': return <ContactsOutlined />;
+    case 'ou': return <FolderOutlined />;
+    case 'container': return <ContainerOutlined />;
+    default: return <FolderOutlined />;
+  }
+};
+
+const childTypeColor = (cls: string) => {
+  switch (cls) {
+    case 'user': return 'blue';
+    case 'group': return 'green';
+    case 'computer': return 'purple';
+    case 'contact': return 'orange';
+    case 'ou': return 'cyan';
+    default: return 'default';
+  }
+};
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -47,43 +87,181 @@ function copyToClipboard(text: string, label: string) {
   notification.success({ message: `${label} copied`, duration: 2, placement: 'bottomRight' });
 }
 
+/** Navigate path for a tree leaf object */
+function objectNavPath(cls: string): string | null {
+  switch (cls) {
+    case 'user': return '/users';
+    case 'group': return '/groups';
+    case 'computer': return '/computers';
+    case 'contact': return '/contacts';
+    default: return null;
+  }
+}
+
 /* ------------------------------------------------------------------ */
-/*  Tree builder — converts { parentDN: OU[] } map to DataNode[]      */
+/*  Custom Directory Tree                                              */
 /* ------------------------------------------------------------------ */
 
-function buildTreeData(
+interface DirNode {
+  dn: string;
+  name: string;
+  type: 'ou' | 'container' | 'user' | 'group' | 'computer' | 'contact' | 'unknown';
+  childCount?: number;
+  children?: DirNode[];
+}
+
+function buildDirTree(
   treeMap: Record<string, OU[]>,
+  contents: Record<string, TreeNode[]>,
   parentKey: string,
-  onSelect: (ou: OU) => void,
-): DataNode[] {
-  const children = treeMap[parentKey];
-  if (!children || children.length === 0) return [];
+): DirNode[] {
+  const subOUs = treeMap[parentKey] || [];
 
-  return children.map((ou) => ({
-    key: ou.dn,
-    icon: <FolderOutlined />,
-    title: (
-      <Space size={8}>
-        <a
-          onClick={(e) => { e.stopPropagation(); onSelect(ou); }}
-          style={{ fontWeight: 500 }}
-        >
-          {ou.name}
-        </a>
-        {ou.childCount > 0 && (
-          <Badge
-            count={ou.childCount}
-            size="small"
-            style={{ backgroundColor: 'var(--ant-color-primary)' }}
-          />
-        )}
-        <Text type="secondary" style={{ ...MONO, fontSize: 11 }} ellipsis>
-          {ou.dn}
-        </Text>
-      </Space>
-    ),
-    children: buildTreeData(treeMap, ou.dn, onSelect),
+  const ouNodes: DirNode[] = subOUs.map((ou) => ({
+    dn: ou.dn,
+    name: ou.name,
+    type: 'ou' as const,
+    childCount: ou.childCount,
+    children: [
+      ...buildDirTree(treeMap, contents, ou.dn),
+      ...(contents[ou.dn] || []).map((obj) => ({
+        dn: obj.dn,
+        name: obj.name,
+        type: (obj.objectClass || 'unknown') as DirNode['type'],
+      })),
+    ],
   }));
+
+  // If no sub-OUs for this key, return leaf objects directly
+  if (subOUs.length === 0) {
+    return (contents[parentKey] || []).map((obj) => ({
+      dn: obj.dn,
+      name: obj.name,
+      type: (obj.objectClass || 'unknown') as DirNode['type'],
+    }));
+  }
+
+  return ouNodes;
+}
+
+function DirectoryTree({
+  nodes,
+  depth = 0,
+  onSelectOU,
+  onSelectObject,
+}: {
+  nodes: DirNode[];
+  depth?: number;
+  onSelectOU: (dn: string) => void;
+  onSelectObject: (dn: string, type: string) => void;
+}) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  const toggle = (dn: string) => {
+    setCollapsed((prev) => ({ ...prev, [dn]: !prev[dn] }));
+  };
+
+  return (
+    <>
+      {nodes.map((node) => {
+        const hasChildren = node.children && node.children.length > 0;
+        const isCollapsed = collapsed[node.dn] ?? false;
+        const isContainer = node.type === 'ou' || node.type === 'container';
+
+        return (
+          <div key={node.dn}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                paddingLeft: depth * 20,
+                padding: '3px 4px 3px ' + (depth * 20 + 4) + 'px',
+                borderRadius: 4,
+                cursor: 'pointer',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--ant-color-fill-content, rgba(255,255,255,0.08)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              {/* expand/collapse arrow */}
+              {hasChildren ? (
+                <span
+                  onClick={(e) => { e.stopPropagation(); toggle(node.dn); }}
+                  style={{
+                    width: 20,
+                    height: 20,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 10,
+                    color: 'var(--ant-color-text-secondary)',
+                    flexShrink: 0,
+                  }}
+                >
+                  {isCollapsed ? <RightOutlined /> : <DownOutlined />}
+                </span>
+              ) : (
+                <span style={{ width: 20, flexShrink: 0 }} />
+              )}
+
+              {/* icon */}
+              <span style={{ marginRight: 6, color: isContainer ? 'var(--ant-color-primary)' : 'var(--ant-color-text-secondary)', flexShrink: 0 }}>
+                {childTypeIcon(node.type)}
+              </span>
+
+              {/* label */}
+              <span
+                onClick={() => {
+                  if (isContainer) {
+                    onSelectOU(node.dn);
+                  } else {
+                    onSelectObject(node.dn, node.type);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontWeight: isContainer ? 500 : 400,
+                }}
+              >
+                {node.name}
+              </span>
+
+              {/* type tag for leaf objects */}
+              {!isContainer && (
+                <Tag
+                  color={childTypeColor(node.type)}
+                  style={{ margin: '0 0 0 8px', fontSize: 11, lineHeight: '18px', padding: '0 5px', flexShrink: 0 }}
+                >
+                  {node.type}
+                </Tag>
+              )}
+
+              {/* child count for containers */}
+              {isContainer && node.childCount != null && node.childCount > 0 && (
+                <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--ant-color-text-tertiary)', flexShrink: 0 }}>
+                  {node.childCount}
+                </span>
+              )}
+            </div>
+
+            {/* children */}
+            {hasChildren && !isCollapsed && (
+              <DirectoryTree
+                nodes={node.children!}
+                depth={depth + 1}
+                onSelectOU={onSelectOU}
+                onSelectObject={onSelectObject}
+              />
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -91,11 +269,14 @@ function buildTreeData(
 /* ------------------------------------------------------------------ */
 
 export default function OUs() {
+  const { isAdmin } = useAuth();
   const actionRef = useRef<ActionType>(null);
+  const navigate = useNavigate();
 
   /* ---- state ---- */
   const [ous, setOUs] = useState<OU[]>([]);
   const [treeMap, setTreeMap] = useState<Record<string, OU[]>>({});
+  const [treeContents, setTreeContents] = useState<Record<string, TreeNode[]>>({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [search, setSearch] = useState('');
@@ -104,6 +285,8 @@ export default function OUs() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm] = Form.useForm();
   const [createLoading, setCreateLoading] = useState(false);
+  const [ouChildren, setOUChildren] = useState<OUChild[]>([]);
+  const [childrenLoading, setChildrenLoading] = useState(false);
 
   const handleCreateOU = useCallback(async () => {
     try {
@@ -149,6 +332,19 @@ export default function OUs() {
     });
   }, []);
 
+  /* ---- load OU contents ---- */
+  const loadOUContents = useCallback(async (dn: string) => {
+    setChildrenLoading(true);
+    try {
+      const data = await api.get<{ children: OUChild[] }>(`/ous/${encodeURIComponent(dn)}/contents`);
+      setOUChildren(data.children || []);
+    } catch {
+      setOUChildren([]);
+    } finally {
+      setChildrenLoading(false);
+    }
+  }, []);
+
   /* ---- data loading ---- */
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -162,19 +358,29 @@ export default function OUs() {
     }
   }, []);
 
-  const loadTree = useCallback(async () => {
+  const loadFullTree = useCallback(async () => {
     try {
-      const data = await api.get<{ tree: Record<string, OU[]> }>('/ous/tree');
+      const data = await api.get<{
+        tree: Record<string, OU[]>;
+        contents: Record<string, TreeNode[]>;
+      }>('/ous/tree/full');
       setTreeMap(data.tree);
+      setTreeContents(data.contents || {});
     } catch {
-      // API unavailable
+      // API unavailable — fall back to basic tree
+      try {
+        const data = await api.get<{ tree: Record<string, OU[]> }>('/ous/tree');
+        setTreeMap(data.tree);
+      } catch {
+        // both unavailable
+      }
     }
   }, []);
 
   const refresh = useCallback(() => {
     loadList();
-    loadTree();
-  }, [loadList, loadTree]);
+    loadFullTree();
+  }, [loadList, loadFullTree]);
 
   useEffect(() => {
     refresh();
@@ -192,14 +398,9 @@ export default function OUs() {
   }, [ous, search]);
 
   /* ---- tree data ---- */
-  const treeData = useMemo(() => {
+  const dirTree = useMemo((): DirNode[] => {
     const rootKeys = Object.keys(treeMap);
     if (rootKeys.length === 0) return [];
-
-    const handleSelect = (ou: OU) => {
-      setSelectedOU(ou);
-      setDrawerOpen(true);
-    };
 
     // The root key is the base DN — the one that is a parent but not a child anywhere
     const allChildDNs = new Set(
@@ -207,40 +408,39 @@ export default function OUs() {
     );
     const rootKey = rootKeys.find((k) => !allChildDNs.has(k)) || rootKeys[0];
 
-    return buildTreeData(treeMap, rootKey, handleSelect);
+    return buildDirTree(treeMap, treeContents, rootKey);
+  }, [treeMap, treeContents]);
+
+  /* ---- OU lookup for tree clicks ---- */
+  const ouByDN = useMemo(() => {
+    const map = new Map<string, OU>();
+    for (const ouList of Object.values(treeMap)) {
+      for (const ou of ouList) {
+        map.set(ou.dn, ou);
+      }
+    }
+    return map;
   }, [treeMap]);
 
-  /* ---- filtered tree (when searching) ---- */
-  const filteredTreeData = useMemo(() => {
-    if (!search) return treeData;
-
-    const q = search.toLowerCase();
-
-    function filterNodes(nodes: DataNode[]): DataNode[] {
-      return nodes.reduce<DataNode[]>((acc, node) => {
-        const ou = ous.find((o) => o.dn === node.key);
-        const matchesSelf =
-          ou &&
-          (ou.name.toLowerCase().includes(q) ||
-            ou.description.toLowerCase().includes(q));
-        const filteredChildren = node.children
-          ? filterNodes(node.children as DataNode[])
-          : [];
-
-        if (matchesSelf || filteredChildren.length > 0) {
-          acc.push({ ...node, children: filteredChildren });
-        }
-        return acc;
-      }, []);
+  const handleTreeSelectOU = useCallback((dn: string) => {
+    const ou = ouByDN.get(dn);
+    if (ou) {
+      setSelectedOU(ou);
+      setDrawerOpen(true);
+      loadOUContents(ou.dn);
     }
+  }, [ouByDN, loadOUContents]);
 
-    return filterNodes(treeData);
-  }, [treeData, search, ous]);
+  const handleTreeSelectObject = useCallback((dn: string, type: string) => {
+    const path = objectNavPath(type);
+    if (path) navigate(path);
+  }, [navigate]);
 
   /* ---- open drawer ---- */
   const openDetail = (ou: OU) => {
     setSelectedOU(ou);
     setDrawerOpen(true);
+    loadOUContents(ou.dn);
   };
 
   /* ---- ProTable columns ---- */
@@ -293,32 +493,35 @@ export default function OUs() {
       title: '',
       key: 'actions',
       width: 48,
-      render: (_, record) => (
-        <Dropdown
-          menu={{
-            items: [
-              { key: 'view', icon: <FolderOpenOutlined />, label: 'View Details' },
-              { key: 'edit', icon: <EditOutlined />, label: 'Edit OU' },
-              { type: 'divider' },
-              { key: 'move', label: 'Move OU' },
-              { type: 'divider' },
-              { key: 'delete', icon: <DeleteOutlined />, label: 'Delete OU', danger: true },
-            ],
-            onClick: ({ key }) => {
-              if (key === 'view') {
-                openDetail(record);
-              } else if (key === 'delete') {
-                handleDeleteOU(record);
-              } else {
-                notification.info({ message: `${key} — not yet implemented` });
-              }
-            },
-          }}
-          trigger={['click']}
-        >
-          <Button type="text" icon={<MoreOutlined />} size="small" />
-        </Dropdown>
-      ),
+      render: (_, record) => {
+        const viewItem = { key: 'view', icon: <FolderOpenOutlined />, label: 'View Details' };
+        const adminItems = isAdmin ? [
+          { key: 'edit', icon: <EditOutlined />, label: 'Edit OU' },
+          { type: 'divider' as const },
+          { key: 'move', label: 'Move OU' },
+          { type: 'divider' as const },
+          { key: 'delete', icon: <DeleteOutlined />, label: 'Delete OU', danger: true },
+        ] : [];
+        return (
+          <Dropdown
+            menu={{
+              items: [viewItem, ...adminItems],
+              onClick: ({ key }) => {
+                if (key === 'view') {
+                  openDetail(record);
+                } else if (key === 'delete') {
+                  handleDeleteOU(record);
+                } else {
+                  notification.info({ message: `${key} — not yet implemented` });
+                }
+              },
+            }}
+            trigger={['click']}
+          >
+            <Button type="text" icon={<MoreOutlined />} size="small" />
+          </Dropdown>
+        );
+      },
     },
   ];
 
@@ -374,14 +577,16 @@ export default function OUs() {
               style={{ width: 240 }}
             />,
             <Button key="refresh" icon={<ReloadOutlined />} onClick={refresh} />,
-            <Button
-              key="create"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setCreateOpen(true)}
-            >
-              New OU
-            </Button>,
+            ...(isAdmin ? [
+              <Button
+                key="create"
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setCreateOpen(true)}
+              >
+                New OU
+              </Button>,
+            ] : []),
           ]}
         />
       )}
@@ -391,7 +596,7 @@ export default function OUs() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Input
-              placeholder="Search OUs..."
+              placeholder="Search tree..."
               prefix={<SearchOutlined />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -400,30 +605,37 @@ export default function OUs() {
             />
             <Space>
               <Button icon={<ReloadOutlined />} onClick={refresh} />
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setCreateOpen(true)}
-              >
-                New OU
-              </Button>
+              {isAdmin && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setCreateOpen(true)}
+                >
+                  New OU
+                </Button>
+              )}
             </Space>
           </div>
 
-          {filteredTreeData.length > 0 ? (
-            <Tree
-              showIcon
-              defaultExpandAll
-              treeData={filteredTreeData}
-              blockNode
-              style={{ padding: '8px 0' }}
-            />
+          {dirTree.length > 0 ? (
+            <div style={{
+              border: '1px solid var(--ant-color-border, #303030)',
+              borderRadius: 8,
+              padding: '8px 4px',
+              fontSize: 13,
+            }}>
+              <DirectoryTree
+                nodes={dirTree}
+                onSelectOU={handleTreeSelectOU}
+                onSelectObject={handleTreeSelectObject}
+              />
+            </div>
           ) : (
             <div style={{ padding: 48, textAlign: 'center' }}>
               <FolderOutlined style={{ fontSize: 36, color: 'var(--ant-color-text-tertiary)', marginBottom: 12 }} />
               <br />
               <Text type="secondary">
-                {search ? 'No OUs match the current search.' : 'No organizational units found.'}
+                {search ? 'No items match the current search.' : 'No organizational units found.'}
               </Text>
             </div>
           )}
@@ -455,19 +667,47 @@ export default function OUs() {
       >
         {selectedOU && (
           <>
+            {/* Contents */}
+            <Title level={5} style={{ marginBottom: 12 }}>
+              Contents ({childrenLoading ? '...' : ouChildren.length})
+            </Title>
+            {childrenLoading ? (
+              <Text type="secondary">Loading...</Text>
+            ) : ouChildren.length > 0 ? (
+              <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 8 }}>
+                <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                  {ouChildren.map((child) => (
+                    <div key={child.dn} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '4px 8px', borderRadius: 4,
+                      border: '1px solid var(--ant-color-border-secondary, #303030)',
+                    }}>
+                      {childTypeIcon(child.objectClass)}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Text ellipsis style={{ display: 'block' }}>{child.name}</Text>
+                        {child.description && (
+                          <Text type="secondary" style={{ fontSize: 11 }} ellipsis>{child.description}</Text>
+                        )}
+                      </div>
+                      <Tag color={childTypeColor(child.objectClass)} style={{ margin: 0, fontSize: 11 }}>
+                        {child.objectClass}
+                      </Tag>
+                    </div>
+                  ))}
+                </Space>
+              </div>
+            ) : (
+              <Text type="secondary">No objects in this OU</Text>
+            )}
+
+            <Divider />
+
             {/* General */}
             <Title level={5} style={{ marginBottom: 12 }}>General</Title>
             <Descriptions column={1} size="small" bordered>
               <Descriptions.Item label="Name">{selectedOU.name}</Descriptions.Item>
               <Descriptions.Item label="Description">
                 {selectedOU.description || <Text type="secondary">No description</Text>}
-              </Descriptions.Item>
-              <Descriptions.Item label="Child OUs">
-                {selectedOU.childCount > 0 ? (
-                  <Tag>{selectedOU.childCount}</Tag>
-                ) : (
-                  <Text type="secondary">None</Text>
-                )}
               </Descriptions.Item>
             </Descriptions>
 
@@ -515,25 +755,27 @@ export default function OUs() {
 
             <Divider />
 
-            {/* Actions */}
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Button
-                block
-                icon={<ApartmentOutlined />}
-                onClick={() => notification.info({ message: 'Move OU — not yet implemented' })}
-              >
-                Move to Another OU
-              </Button>
-              <Button
-                block
-                danger
-                type="primary"
-                icon={<DeleteOutlined />}
-                onClick={() => selectedOU && handleDeleteOU(selectedOU)}
-              >
-                Delete Organizational Unit
-              </Button>
-            </Space>
+            {/* Actions (admin only) */}
+            {isAdmin && (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button
+                  block
+                  icon={<ApartmentOutlined />}
+                  onClick={() => notification.info({ message: 'Move OU — not yet implemented' })}
+                >
+                  Move to Another OU
+                </Button>
+                <Button
+                  block
+                  danger
+                  type="primary"
+                  icon={<DeleteOutlined />}
+                  onClick={() => selectedOU && handleDeleteOU(selectedOU)}
+                >
+                  Delete Organizational Unit
+                </Button>
+              </Space>
+            )}
           </>
         )}
       </Drawer>
