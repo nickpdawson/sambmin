@@ -48,8 +48,10 @@ pgdata/
 build/
 dist/
 
-# Claude Code / Ralph Loop
+# Claude Code / Ralph Loop / internal docs
 .claude/
+CLAUDE.md
+plan.md
 RALPH-*.md
 ralph-*.log
 ralph-*.md
