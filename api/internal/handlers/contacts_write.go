@@ -53,7 +53,7 @@ func handleCreateContact(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("contact create failed", "name", req.Name, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "contact creation failed", err)
 		return
 	}
 
@@ -168,7 +168,7 @@ func handleUpdateContact(w http.ResponseWriter, r *http.Request) {
 
 	if err := dirClient.ModifyAttributes(r.Context(), dn, attrs, sess.DN, password); err != nil {
 		slog.Error("contact update failed", "dn", dn, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "contact update failed", err)
 		return
 	}
 
@@ -193,7 +193,7 @@ func handleDeleteContact(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "contact", "delete", contactName); err != nil {
 		slog.Error("contact delete failed", "name", contactName, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "contact deletion failed", err)
 		return
 	}
 
@@ -233,7 +233,7 @@ func handleMoveContact(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "contact", "move", contactName, req.TargetOU); err != nil {
 		slog.Error("contact move failed", "name", contactName, "targetOU", req.TargetOU, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "contact move failed", err)
 		return
 	}
 
@@ -273,7 +273,7 @@ func handleRenameContact(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "contact", "rename", contactName, "--new-cn="+req.NewName); err != nil {
 		slog.Error("contact rename failed", "name", contactName, "newName", req.NewName, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "contact rename failed", err)
 		return
 	}
 

@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"log/slog"
 	"net/http"
+
+	"github.com/nickdawson/sambmin/internal/validate"
 )
 
 // --- Self-Service Password Change ---
@@ -29,6 +32,10 @@ func handleSelfPasswordChange(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "current and new password required")
 		return
 	}
+	if err := validate.Password(req.NewPassword); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	// Verify current password matches the session password
 	sessionPW, err := sessionStore.Password(sess)
@@ -36,7 +43,7 @@ func handleSelfPasswordChange(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "session credentials unavailable")
 		return
 	}
-	if req.CurrentPassword != sessionPW {
+	if subtle.ConstantTimeCompare([]byte(req.CurrentPassword), []byte(sessionPW)) != 1 {
 		respondError(w, http.StatusForbidden, "current password is incorrect")
 		return
 	}
@@ -46,7 +53,7 @@ func handleSelfPasswordChange(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("self password change failed", "username", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "password change failed", err)
 		return
 	}
 
@@ -68,6 +75,17 @@ func handleSelfPasswordChange(w http.ResponseWriter, r *http.Request) {
 		Value:    newSess.ID,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		Expires:  newSess.Expires,
+	})
+
+	// Update CSRF cookie for new session
+	http.SetCookie(w, &http.Cookie{
+		Name:     "sambmin_csrf",
+		Value:    newSess.CSRFToken,
+		Path:     "/",
+		HttpOnly: false,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 		Expires:  newSess.Expires,
@@ -157,7 +175,7 @@ func handleSelfProfileUpdate(w http.ResponseWriter, r *http.Request) {
 
 	if err := dirClient.ModifyAttributes(r.Context(), sess.DN, attrs, sess.DN, password); err != nil {
 		slog.Error("self profile update failed", "dn", sess.DN, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "profile update failed", err)
 		return
 	}
 

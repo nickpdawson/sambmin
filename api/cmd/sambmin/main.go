@@ -44,22 +44,26 @@ func main() {
 	}
 
 	// Initialize authentication if DCs are configured
+	var authStore *auth.Store
 	if len(cfg.DCs) > 0 && cfg.BaseDN != "" {
-		if err := initAuth(cfg); err != nil {
-			slog.Warn("auth initialization failed, login disabled", "error", err)
+		var authErr error
+		authStore, authErr = initAuth(cfg)
+		if authErr != nil {
+			slog.Warn("auth initialization failed, login disabled", "error", authErr)
 		} else {
 			slog.Info("authentication system initialized")
 		}
 	}
 
 	mux := http.NewServeMux()
-	handlers.Register(mux, cfg, dirClient)
+	handlers.Register(mux, cfg, dirClient, authStore)
 
 	handler := middleware.Chain(mux,
 		middleware.RequestID,
 		middleware.Logger,
 		middleware.Recovery,
 		middleware.CORS(cfg.AllowedOrigins),
+		middleware.CSRF,
 	)
 
 	server := &http.Server{
@@ -146,11 +150,11 @@ func initDirectory(cfg *config.Config) (*directory.Client, error) {
 	return client, nil
 }
 
-func initAuth(cfg *config.Config) error {
+func initAuth(cfg *config.Config) (*auth.Store, error) {
 	// Create session store with AES-GCM password encryption
 	store, err := auth.NewStore(cfg.SessionTimeout)
 	if err != nil {
-		return fmt.Errorf("create session store: %w", err)
+		return nil, fmt.Errorf("create session store: %w", err)
 	}
 
 	// Find primary DC for authentication binds
@@ -181,5 +185,5 @@ func initAuth(cfg *config.Config) error {
 
 	handlers.InitAuth(store, authenticator)
 	slog.Info("auth: LDAP authenticator targeting", "dc", dcHost, "address", dcAddress)
-	return nil
+	return store, nil
 }

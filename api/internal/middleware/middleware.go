@@ -89,6 +89,46 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	}
 }
 
+// CSRF implements double-submit cookie CSRF protection.
+// Skips safe methods (GET, HEAD, OPTIONS) and the login endpoint.
+// Verifies that the X-CSRF-Token header matches the sambmin_csrf cookie.
+func CSRF(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip safe methods
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Skip login endpoint (no session yet)
+		if r.URL.Path == "/api/auth/login" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Only enforce on API routes
+		if !strings.HasPrefix(r.URL.Path, "/api/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		cookie, err := r.Cookie("sambmin_csrf")
+		if err != nil || cookie.Value == "" {
+			http.Error(w, `{"error":"CSRF token missing"}`, http.StatusForbidden)
+			return
+		}
+
+		header := r.Header.Get("X-CSRF-Token")
+		if header == "" || header != cookie.Value {
+			http.Error(w, `{"error":"CSRF token mismatch"}`, http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // CSP sets Content-Security-Policy headers
 func CSP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

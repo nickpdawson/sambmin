@@ -7,20 +7,24 @@ import (
 	"time"
 
 	"github.com/nickdawson/sambmin/internal/auth"
+	"github.com/nickdawson/sambmin/internal/middleware"
 )
 
 var (
 	sessionStore *auth.Store
 	ldapAuth     *auth.LDAPAuthenticator
+	loginLimiter *middleware.RateLimiter
 )
 
 const sessionCookieName = "sambmin_session"
 
-// InitAuth sets up the session store and LDAP authenticator.
+// InitAuth sets up the session store, LDAP authenticator, and login rate limiter.
 // Called from main.go during startup.
 func InitAuth(store *auth.Store, authenticator *auth.LDAPAuthenticator) {
 	sessionStore = store
 	ldapAuth = authenticator
+	// 10 failed attempts per IP per minute, 5 per username per 15 minutes
+	loginLimiter = middleware.NewRateLimiter(10, time.Minute, 5, 15*time.Minute)
 }
 
 type loginRequest struct {
@@ -52,10 +56,24 @@ func handleLoginImpl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Rate limit check
+	clientIP := middleware.ClientIP(r)
+	if loginLimiter != nil {
+		if blocked, retryAfter := loginLimiter.Check(clientIP, req.Username); blocked {
+			slog.Warn("auth: rate limited", "ip", clientIP, "username", req.Username)
+			middleware.RateLimitResponse(w, retryAfter)
+			return
+		}
+	}
+
 	// Authenticate against LDAP
 	result, err := ldapAuth.Authenticate(r.Context(), req.Username, req.Password)
 	if err != nil {
-		slog.Warn("auth: login failed", "username", req.Username, "error", err)
+		// Record failed attempt for rate limiting
+		if loginLimiter != nil {
+			loginLimiter.RecordFailure(clientIP, req.Username)
+		}
+		slog.Warn("auth: login failed", "username", req.Username, "ip", clientIP, "error", err)
 		respondError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
@@ -74,6 +92,17 @@ func handleLoginImpl(w http.ResponseWriter, r *http.Request) {
 		Value:    sess.ID,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		Expires:  sess.Expires,
+	})
+
+	// Set CSRF cookie (readable by JS, verified by middleware)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "sambmin_csrf",
+		Value:    sess.CSRFToken,
+		Path:     "/",
+		HttpOnly: false, // JS must read this to send as header
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 		Expires:  sess.Expires,
@@ -125,9 +154,14 @@ func handleMeImpl(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// SessionFromRequest extracts the session from a request cookie.
-// Used by middleware and handlers.
+// SessionFromRequest extracts the session from the request context (set by
+// RequireAuth middleware) or falls back to cookie lookup.
 func SessionFromRequest(r *http.Request) *auth.Session {
+	// Check context first — set by auth.RequireAuth middleware
+	if sess, ok := r.Context().Value(auth.SessionKey).(*auth.Session); ok && sess != nil {
+		return sess
+	}
+	// Fallback to cookie lookup (for tests that call handlers directly)
 	if sessionStore == nil {
 		return nil
 	}
@@ -136,15 +170,4 @@ func SessionFromRequest(r *http.Request) *auth.Session {
 		return nil
 	}
 	return sessionStore.Get(cookie.Value)
-}
-
-// contextKey for storing session in request context.
-type authContextKey string
-
-const sessionContextKey authContextKey = "session"
-
-// SessionFromContext retrieves the session from the request context.
-func SessionFromContext(ctx interface{ Value(any) any }) *auth.Session {
-	sess, _ := ctx.Value(sessionContextKey).(*auth.Session)
-	return sess
 }

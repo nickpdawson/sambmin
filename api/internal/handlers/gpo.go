@@ -78,7 +78,7 @@ func handleCreateGPO(w http.ResponseWriter, r *http.Request) {
 	output, err := runSambaTool(r.Context(), sess, "gpo", "create", req.Name)
 	if err != nil {
 		slog.Error("gpo create failed", "name", req.Name, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "GPO creation failed", err)
 		return
 	}
 
@@ -110,7 +110,7 @@ func handleDeleteGPO(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "gpo", "del", id); err != nil {
 		slog.Error("gpo delete failed", "id", id, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "GPO deletion failed", err)
 		return
 	}
 
@@ -147,7 +147,7 @@ func handleLinkGPO(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "gpo", "setlink", req.OUDN, id); err != nil {
 		slog.Error("gpo link failed", "id", id, "ou", req.OUDN, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "GPO link failed", err)
 		return
 	}
 
@@ -184,7 +184,7 @@ func handleUnlinkGPO(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "gpo", "dellink", req.OUDN, id); err != nil {
 		slog.Error("gpo unlink failed", "id", id, "ou", req.OUDN, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "GPO unlink failed", err)
 		return
 	}
 

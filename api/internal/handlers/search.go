@@ -9,7 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nickdawson/sambmin/internal/auth"
 	"github.com/nickdawson/sambmin/internal/models"
+	"github.com/nickdawson/sambmin/internal/validate"
 
 	goldap "github.com/go-ldap/ldap/v3"
 )
@@ -42,6 +44,16 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	// Build the LDAP filter
 	var filter string
 	if req.RawFilter != "" {
+		// Validate raw filter
+		if err := validate.RawFilter(req.RawFilter); err != nil {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		// Raw filters require admin role
+		if !auth.HasRole(sess, auth.RoleAdmin) {
+			respondError(w, http.StatusForbidden, "raw LDAP filters require admin privileges")
+			return
+		}
 		filter = req.RawFilter
 	} else if len(req.Filters) > 0 {
 		filter = buildFilterFromVisual(req.ObjectType, req.Filters)
@@ -59,6 +71,13 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "baseDN required")
 		return
 	}
+	// Validate baseDN ends with configured domain suffix
+	if handlerConfig != nil && handlerConfig.BaseDN != "" {
+		if err := validate.BaseDN(baseDN, handlerConfig.BaseDN); err != nil {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
 
 	// Determine scope
 	scope := goldap.ScopeWholeSubtree
@@ -74,11 +93,16 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	if len(attrs) == 0 {
 		attrs = []string{"dn", "objectClass", "cn", "sAMAccountName", "displayName", "mail", "description", "whenCreated"}
 	}
+	// Block sensitive attributes
+	if err := validate.Attributes(attrs); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	results, err := dirClient.Search(r.Context(), baseDN, scope, filter, attrs)
 	if err != nil {
 		slog.Error("LDAP search failed", "filter", filter, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, fmt.Sprintf("search failed: %s", err.Error()))
+		respondError(w, http.StatusInternalServerError, "search failed")
 		return
 	}
 
