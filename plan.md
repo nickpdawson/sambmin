@@ -694,6 +694,15 @@ sambmin/
 - [x] All 221+ tests passing, FreeBSD cross-compile verified
 - Commits: `3a9d971`, `39e1311`
 
+**M23: Inline Editing Fix** (2026-02-23)
+- [x] Fix AntD Descriptions bug: custom component wrapping Descriptions.Item silently dropped content
+- [x] Refactored EditableField → EditableFieldContent (renders content only, parent provides Descriptions.Item)
+- [x] Add "Edit" action to user and group dropdown menus
+- [x] Add inline description editing to group detail drawer (PUT /api/groups/{dn})
+- [x] Edit buttons now visible bordered buttons (were invisible text links)
+- [x] Verified: edited openxpki description → "old account for PKI" saved to AD
+- Commit: `daf03da`
+
 ### Next Up
 
 **Settings Persistence**
