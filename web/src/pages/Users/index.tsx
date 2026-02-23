@@ -302,6 +302,7 @@ export default function Users() {
       render: (_, record) => {
         const viewItem = { key: 'view', label: 'View Details' };
         const adminItems = isAdmin ? [
+          { key: 'edit', label: 'Edit' },
           { key: 'rename', label: 'Rename' },
           { key: 'reset', label: 'Reset Password' },
           { type: 'divider' as const },
@@ -317,7 +318,7 @@ export default function Users() {
             menu={{
               items: [viewItem, ...adminItems],
               onClick: ({ key }) => {
-                if (key === 'view') {
+                if (key === 'view' || key === 'edit') {
                   setSelectedUser(record);
                   setDrawerOpen(true);
                 } else {

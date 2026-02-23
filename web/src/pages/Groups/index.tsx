@@ -7,6 +7,7 @@ import {
   PlusOutlined, ReloadOutlined, SearchOutlined, TeamOutlined,
   SafetyCertificateOutlined, MailOutlined, CopyOutlined, MoreOutlined,
   ExclamationCircleOutlined, DeleteOutlined, UserOutlined,
+  EditOutlined, SaveOutlined, CloseOutlined,
 } from '@ant-design/icons';
 import { ProTable } from '@ant-design/pro-components';
 import type { ProColumns, ActionType } from '@ant-design/pro-components';
@@ -73,6 +74,9 @@ export default function Groups() {
   const [selectedMemberDn, setSelectedMemberDn] = useState<string | null>(null);
   const [addingMember, setAddingMember] = useState(false);
   const [allUsers, setAllUsers] = useState<{ dn: string; displayName: string; samAccountName: string }[]>([]);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descValue, setDescValue] = useState('');
+  const [savingDesc, setSavingDesc] = useState(false);
 
   const loadGroups = useCallback(async () => {
     setLoading(true);
@@ -173,6 +177,24 @@ export default function Groups() {
       },
     });
   }, [selectedGroup, refreshSelectedGroup, loadGroups]);
+
+  const handleSaveDescription = useCallback(async () => {
+    if (!selectedGroup) return;
+    setSavingDesc(true);
+    try {
+      const dn = encodeURIComponent(selectedGroup.dn);
+      await api.put(`/groups/${dn}`, { description: descValue });
+      notification.success({ message: 'Description updated' });
+      setEditingDesc(false);
+      await refreshSelectedGroup(selectedGroup.dn);
+      loadGroups();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Update failed';
+      Modal.error({ title: 'Update failed', content: msg });
+    } finally {
+      setSavingDesc(false);
+    }
+  }, [selectedGroup, descValue, refreshSelectedGroup, loadGroups]);
 
   // Load users when add member modal opens
   useEffect(() => {
@@ -278,6 +300,7 @@ export default function Groups() {
       render: (_, record) => {
         const viewItem = { key: 'view', label: 'View Details' };
         const adminItems = isAdmin ? [
+          { key: 'edit', label: 'Edit' },
           { key: 'rename', label: 'Rename' },
           { type: 'divider' as const },
           { key: 'delete', label: 'Delete Group', danger: true },
@@ -287,7 +310,7 @@ export default function Groups() {
             menu={{
               items: [viewItem, ...adminItems],
               onClick: ({ key }) => {
-                if (key === 'view') {
+                if (key === 'view' || key === 'edit') {
                   setSelectedGroup(record);
                   setDrawerOpen(true);
                 } else {
@@ -435,10 +458,34 @@ export default function Groups() {
             <Divider />
 
             {/* Description */}
-            <Title level={5} style={{ marginBottom: 12 }}>Description</Title>
-            <Text type={selectedGroup.description ? undefined : 'secondary'}>
-              {selectedGroup.description || 'No description'}
-            </Text>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Title level={5} style={{ margin: 0 }}>Description</Title>
+              {isAdmin && !editingDesc && (
+                <Button
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => { setDescValue(selectedGroup.description || ''); setEditingDesc(true); }}
+                >
+                  Edit
+                </Button>
+              )}
+            </div>
+            {editingDesc ? (
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  value={descValue}
+                  onChange={(e) => setDescValue(e.target.value)}
+                  onPressEnter={handleSaveDescription}
+                  autoFocus
+                />
+                <Button icon={<SaveOutlined />} type="primary" loading={savingDesc} onClick={handleSaveDescription} />
+                <Button icon={<CloseOutlined />} onClick={() => setEditingDesc(false)} />
+              </Space.Compact>
+            ) : (
+              <Text type={selectedGroup.description ? undefined : 'secondary'}>
+                {selectedGroup.description || 'No description'}
+              </Text>
+            )}
 
             <Divider />
 

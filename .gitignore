@@ -56,3 +56,13 @@ RALPH-*.md
 ralph-*.log
 ralph-*.md
 sambmin-ralph.sh
+sambmin-prd.md
+
+# Security audit (keep private)
+security_issues.md
+security-audit-output.log
+sambmin-security.sh
+
+# Root-level compiled binaries (build artifacts)
+/sambmin
+/sambmin-linux

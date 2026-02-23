@@ -95,9 +95,8 @@ function timeAgo(iso: string): string {
   return `${Math.floor(days / 365)}y ago`;
 }
 
-// Editable field component for inline editing
-function EditableField({ label, value, fieldName, onSave }: {
-  label: string;
+// Editable field content — renders inside a Descriptions.Item provided by parent
+function EditableFieldContent({ value, fieldName, onSave }: {
   value: string;
   fieldName: string;
   onSave: (field: string, value: string) => Promise<void>;
@@ -121,38 +120,32 @@ function EditableField({ label, value, fieldName, onSave }: {
 
   if (editing) {
     return (
-      <Descriptions.Item label={label}>
-        <Space>
-          <Input
-            size="small"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onPressEnter={handleSave}
-            style={{ width: 200 }}
-            autoFocus
-          />
-          <Button type="text" size="small" icon={<SaveOutlined />} loading={saving} onClick={handleSave} />
-          <Button type="text" size="small" icon={<CloseOutlined />} onClick={() => { setEditValue(value); setEditing(false); }} />
-        </Space>
-      </Descriptions.Item>
+      <Space>
+        <Input
+          size="small"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onPressEnter={handleSave}
+          style={{ width: 200 }}
+          autoFocus
+        />
+        <Button type="text" size="small" icon={<SaveOutlined />} loading={saving} onClick={handleSave} />
+        <Button type="text" size="small" icon={<CloseOutlined />} onClick={() => { setEditValue(value); setEditing(false); }} />
+      </Space>
     );
   }
 
   return (
-    <Descriptions.Item label={label}>
-      <Space size={8} style={{ width: '100%', justifyContent: 'space-between' }}>
-        <span>{value || <Text type="secondary">—</Text>}</span>
-        <Button
-          type="link"
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => setEditing(true)}
-          style={{ padding: '0 4px', height: 'auto', lineHeight: 1 }}
-        >
-          Edit
-        </Button>
-      </Space>
-    </Descriptions.Item>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+      <span>{value || <Text type="secondary">—</Text>}</span>
+      <Button
+        size="small"
+        icon={<EditOutlined />}
+        onClick={() => setEditing(true)}
+      >
+        Edit
+      </Button>
+    </div>
   );
 }
 
@@ -266,9 +259,9 @@ export default function UserDrawer({ user, open, onClose, onRefresh }: UserDrawe
       children: (
         <>
           <Descriptions column={1} size="small" bordered>
-            <EditableField label="Display Name" value={user.displayName} fieldName="displayName" onSave={handleFieldSave} />
-            <EditableField label="First Name" value={user.givenName} fieldName="givenName" onSave={handleFieldSave} />
-            <EditableField label="Last Name" value={user.sn} fieldName="surname" onSave={handleFieldSave} />
+            <Descriptions.Item label="Display Name"><EditableFieldContent value={user.displayName} fieldName="displayName" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="First Name"><EditableFieldContent value={user.givenName} fieldName="givenName" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Last Name"><EditableFieldContent value={user.sn} fieldName="surname" onSave={handleFieldSave} /></Descriptions.Item>
             <Descriptions.Item label="Username">
               <Space>
                 <Text code>{user.samAccountName}</Text>
@@ -281,10 +274,10 @@ export default function UserDrawer({ user, open, onClose, onRefresh }: UserDrawe
                 <Tooltip title="Copy"><Button type="text" size="small" icon={<CopyOutlined />} onClick={() => copyToClipboard(user.userPrincipalName, 'UPN')} /></Tooltip>
               </Space>
             </Descriptions.Item>
-            <EditableField label="Email" value={user.mail} fieldName="mail" onSave={handleFieldSave} />
-            <EditableField label="Description" value={user.description} fieldName="description" onSave={handleFieldSave} />
-            <EditableField label="Phone" value={user.phone} fieldName="phone" onSave={handleFieldSave} />
-            <EditableField label="Mobile" value={user.mobile} fieldName="mobile" onSave={handleFieldSave} />
+            <Descriptions.Item label="Email"><EditableFieldContent value={user.mail} fieldName="mail" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Description"><EditableFieldContent value={user.description} fieldName="description" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Phone"><EditableFieldContent value={user.phone} fieldName="phone" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Mobile"><EditableFieldContent value={user.mobile} fieldName="mobile" onSave={handleFieldSave} /></Descriptions.Item>
           </Descriptions>
         </>
       ),
@@ -295,9 +288,9 @@ export default function UserDrawer({ user, open, onClose, onRefresh }: UserDrawe
       children: (
         <>
           <Descriptions column={1} size="small" bordered>
-            <EditableField label="Title" value={user.title} fieldName="title" onSave={handleFieldSave} />
-            <EditableField label="Department" value={user.department} fieldName="department" onSave={handleFieldSave} />
-            <EditableField label="Company" value={user.company} fieldName="company" onSave={handleFieldSave} />
+            <Descriptions.Item label="Title"><EditableFieldContent value={user.title} fieldName="title" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Department"><EditableFieldContent value={user.department} fieldName="department" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Company"><EditableFieldContent value={user.company} fieldName="company" onSave={handleFieldSave} /></Descriptions.Item>
             <Descriptions.Item label="Manager">
               {user.manager ? (
                 <Space>
@@ -306,12 +299,12 @@ export default function UserDrawer({ user, open, onClose, onRefresh }: UserDrawe
                 </Space>
               ) : <Text type="secondary">—</Text>}
             </Descriptions.Item>
-            <EditableField label="Office" value={user.office} fieldName="office" onSave={handleFieldSave} />
-            <EditableField label="Street" value={user.streetAddress} fieldName="streetAddress" onSave={handleFieldSave} />
-            <EditableField label="City" value={user.city} fieldName="city" onSave={handleFieldSave} />
-            <EditableField label="State" value={user.state} fieldName="state" onSave={handleFieldSave} />
-            <EditableField label="Postal Code" value={user.postalCode} fieldName="postalCode" onSave={handleFieldSave} />
-            <EditableField label="Country" value={user.country} fieldName="country" onSave={handleFieldSave} />
+            <Descriptions.Item label="Office"><EditableFieldContent value={user.office} fieldName="office" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Street"><EditableFieldContent value={user.streetAddress} fieldName="streetAddress" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="City"><EditableFieldContent value={user.city} fieldName="city" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="State"><EditableFieldContent value={user.state} fieldName="state" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Postal Code"><EditableFieldContent value={user.postalCode} fieldName="postalCode" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Country"><EditableFieldContent value={user.country} fieldName="country" onSave={handleFieldSave} /></Descriptions.Item>
           </Descriptions>
         </>
       ),
