@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -192,9 +193,17 @@ func handleExportKeytab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Export keytab — samba-tool appends to existing file, so call once per principal
-	tmpFile := fmt.Sprintf("/tmp/sambmin-keytab-%s.keytab", sess.ID[:8])
-	os.Remove(tmpFile) // clean any stale file
+	// Export keytab — samba-tool appends to existing file, so call once per principal.
+	// Use a secure temp directory to avoid predictable paths in /tmp.
+	tmpDir, err := os.MkdirTemp("", "sambmin-keytab-")
+	if err != nil {
+		slog.Error("keytab: failed to create temp dir", "error", err)
+		respondError(w, http.StatusInternalServerError, "keytab export failed")
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tmpFile := filepath.Join(tmpDir, "export.keytab")
 
 	var exported []string
 	for _, principal := range principals {
@@ -207,12 +216,8 @@ func handleExportKeytab(w http.ResponseWriter, r *http.Request) {
 
 				// Build CLI commands for the user to run manually
 				var commands []string
-				for i, p := range principals {
-					if i == 0 {
-						commands = append(commands, fmt.Sprintf("samba-tool domain exportkeytab /tmp/service.keytab --principal=%s", p))
-					} else {
-						commands = append(commands, fmt.Sprintf("samba-tool domain exportkeytab /tmp/service.keytab --principal=%s", p))
-					}
+				for _, p := range principals {
+					commands = append(commands, fmt.Sprintf("samba-tool domain exportkeytab /tmp/service.keytab --principal=%s", p))
 				}
 
 				respondJSON(w, http.StatusOK, map[string]any{
@@ -220,14 +225,12 @@ func handleExportKeytab(w http.ResponseWriter, r *http.Request) {
 					"message":  "Keytab export requires direct access to the Samba private database. Run these commands on the DC as root:",
 					"commands": commands,
 				})
-				os.Remove(tmpFile)
 				return
 			}
 
 			// Other errors (bad principal, etc.)
 			slog.Error("keytab export failed", "principal", principal, "actor", sess.Username, "error", err)
-			respondError(w, http.StatusInternalServerError, "keytab export failed for "+principal+": "+errStr)
-			os.Remove(tmpFile)
+			respondError(w, http.StatusInternalServerError, "keytab export failed")
 			return
 		}
 		exported = append(exported, principal)
@@ -237,10 +240,9 @@ func handleExportKeytab(w http.ResponseWriter, r *http.Request) {
 	data, err := os.ReadFile(tmpFile)
 	if err != nil {
 		slog.Error("keytab read failed", "file", tmpFile, "error", err)
-		respondError(w, http.StatusInternalServerError, "keytab file read failed")
+		respondError(w, http.StatusInternalServerError, "keytab export failed")
 		return
 	}
-	os.Remove(tmpFile) // cleanup
 
 	filename := "service.keytab"
 	if len(exported) == 1 {

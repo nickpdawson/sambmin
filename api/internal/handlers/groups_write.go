@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+
+	"github.com/nickdawson/sambmin/internal/validate"
 )
 
 // --- Group Create ---
@@ -32,6 +34,10 @@ func handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "group name required")
 		return
 	}
+	if err := validate.GroupName(req.Name); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	args := []string{"group", "add", req.Name}
 	if req.Description != "" {
@@ -46,7 +52,7 @@ func handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("group create failed", "name", req.Name, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "group creation failed", err)
 		return
 	}
 
@@ -101,7 +107,7 @@ func handleUpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 	if err := dirClient.ModifyAttributes(r.Context(), dn, attrs, sess.DN, password); err != nil {
 		slog.Error("group update failed", "dn", dn, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "group update failed", err)
 		return
 	}
 
@@ -126,7 +132,7 @@ func handleDeleteGroup(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "group", "delete", groupName); err != nil {
 		slog.Error("group delete failed", "name", groupName, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "group deletion failed", err)
 		return
 	}
 
@@ -167,7 +173,7 @@ func handleAddGroupMember(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "group", "addmembers", groupName, memberName); err != nil {
 		slog.Error("add group member failed", "group", groupName, "member", memberName, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "adding group member failed", err)
 		return
 	}
 
@@ -197,7 +203,7 @@ func handleRemoveGroupMember(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "group", "removemembers", groupName, memberName); err != nil {
 		slog.Error("remove group member failed", "group", groupName, "member", memberName, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "removing group member failed", err)
 		return
 	}
 
@@ -234,10 +240,14 @@ func handleRenameGroup(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "new name required")
 		return
 	}
+	if err := validate.GroupName(req.NewName); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	if _, err := runSambaTool(r.Context(), sess, "group", "rename", groupName, "--new-name="+req.NewName); err != nil {
 		slog.Error("group rename failed", "name", groupName, "newName", req.NewName, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "group rename failed", err)
 		return
 	}
 

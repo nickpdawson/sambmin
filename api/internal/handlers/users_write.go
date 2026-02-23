@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nickdawson/sambmin/internal/auth"
+	"github.com/nickdawson/sambmin/internal/validate"
 )
 
 // sambaTool is the path to the samba-tool binary.
@@ -43,7 +44,7 @@ func runSambaTool(ctx context.Context, sess *auth.Session, args ...string) (stri
 	cmd.Stderr = &stderr
 
 	// Log without credentials
-	slog.Debug("samba-tool", "args", args[:len(args)-2])
+	slog.Debug("samba-tool", "args", filterSensitiveArgs(args))
 
 	if err := cmd.Run(); err != nil {
 		errMsg := strings.TrimSpace(stderr.String())
@@ -71,6 +72,41 @@ func runSambaTool(ctx context.Context, sess *auth.Session, args ...string) (stri
 	}
 
 	return stdout.String(), nil
+}
+
+// filterSensitiveArgs returns a copy of args with sensitive values redacted.
+// Strips: -U user%password, --newpassword=..., --password=..., and
+// the positional password in "user create <username> <password>".
+func filterSensitiveArgs(args []string) []string {
+	filtered := make([]string, 0, len(args))
+	skipNext := false
+	for i, a := range args {
+		if skipNext {
+			skipNext = false
+			continue
+		}
+		// Skip -U and its value
+		if a == "-U" {
+			skipNext = true
+			continue
+		}
+		// Redact password flags
+		if strings.HasPrefix(a, "--newpassword=") || strings.HasPrefix(a, "--password=") {
+			filtered = append(filtered, strings.SplitN(a, "=", 2)[0]+"=***")
+			continue
+		}
+		// Redact positional password in "user create <username> <password>"
+		if i == 3 && len(args) > 1 && args[0] == "user" && args[1] == "create" {
+			filtered = append(filtered, "***")
+			continue
+		}
+		// Skip args containing % (likely user%password)
+		if strings.Contains(a, "%") && i > 0 && args[i-1] == "-U" {
+			continue
+		}
+		filtered = append(filtered, a)
+	}
+	return filtered
 }
 
 // requireSession extracts the session from the request. Returns nil and sends
@@ -114,6 +150,14 @@ func handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "username and password required")
 		return
 	}
+	if err := validate.SAMAccountName(req.Username); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validate.Password(req.Password); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	args := []string{"user", "create", req.Username, req.Password}
 	if req.GivenName != "" {
@@ -140,7 +184,7 @@ func handleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("user create failed", "username", req.Username, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "user creation failed", err)
 		return
 	}
 
@@ -259,7 +303,7 @@ func handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := dirClient.ModifyAttributes(r.Context(), dn, attrs, sess.DN, password); err != nil {
 		slog.Error("user update failed", "dn", dn, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "user update failed", err)
 		return
 	}
 
@@ -289,7 +333,7 @@ func handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "user", "delete", username); err != nil {
 		slog.Error("user delete failed", "username", username, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "user deletion failed", err)
 		return
 	}
 
@@ -327,6 +371,10 @@ func handleResetPassword(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "password required")
 		return
 	}
+	if err := validate.Password(req.Password); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	args := []string{"user", "setpassword", username, "--newpassword=" + req.Password}
 	if req.MustChangeAtNextLogin {
@@ -335,7 +383,7 @@ func handleResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("password reset failed", "username", username, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "password reset failed", err)
 		return
 	}
 
@@ -360,7 +408,7 @@ func handleEnableUser(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "user", "enable", username); err != nil {
 		slog.Error("user enable failed", "username", username, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "user enable failed", err)
 		return
 	}
 
@@ -383,7 +431,7 @@ func handleDisableUser(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "user", "disable", username); err != nil {
 		slog.Error("user disable failed", "username", username, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "user disable failed", err)
 		return
 	}
 
@@ -406,7 +454,7 @@ func handleUnlockUser(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "user", "unlock", username); err != nil {
 		slog.Error("user unlock failed", "username", username, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "user unlock failed", err)
 		return
 	}
 
@@ -445,6 +493,10 @@ func handleRenameUser(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "new name required")
 		return
 	}
+	if err := validate.NoFlagInjection(req.NewName, "new name"); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	args := []string{"user", "rename", username, "--new-cn=" + req.NewName}
 	if req.NewSurname != "" {
@@ -456,7 +508,7 @@ func handleRenameUser(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("user rename failed", "username", username, "newName", req.NewName, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "user rename failed", err)
 		return
 	}
 

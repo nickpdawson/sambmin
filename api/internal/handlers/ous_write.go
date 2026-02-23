@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+
+	"github.com/nickdawson/sambmin/internal/validate"
 )
 
 type createOURequest struct {
@@ -28,6 +30,10 @@ func handleCreateOU(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "OU name required")
 		return
 	}
+	if err := validate.OUName(req.Name); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	// Build the OU DN
 	ouDN := "OU=" + req.Name
@@ -44,7 +50,7 @@ func handleCreateOU(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("OU create failed", "name", req.Name, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "OU creation failed", err)
 		return
 	}
 
@@ -66,7 +72,7 @@ func handleDeleteOU(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "ou", "delete", dn); err != nil {
 		slog.Error("OU delete failed", "dn", dn, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "OU deletion failed", err)
 		return
 	}
 

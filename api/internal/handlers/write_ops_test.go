@@ -2736,9 +2736,11 @@ echo "mock ok"
 // --- Replication Tests ---
 
 func TestHandleReplicationTopologySuccess(t *testing.T) {
+	_, sess := setupTestAuth(t)
 	setupInfraTest(t)
 
 	req := httptest.NewRequest("GET", "/api/replication/topology", nil)
+	addSessionCookie(req, sess)
 	w := httptest.NewRecorder()
 
 	handleReplicationTopologyLive(w, req)
@@ -2755,12 +2757,14 @@ func TestHandleReplicationTopologySuccess(t *testing.T) {
 }
 
 func TestHandleReplicationTopologyFailure(t *testing.T) {
+	_, sess := setupTestAuth(t)
 	setupFailingSambaTool(t)
 	if handlerConfig == nil {
 		handlerConfig = &config.Config{BaseDN: "DC=test,DC=com"}
 	}
 
 	req := httptest.NewRequest("GET", "/api/replication/topology", nil)
+	addSessionCookie(req, sess)
 	w := httptest.NewRecorder()
 
 	handleReplicationTopologyLive(w, req)
@@ -2771,6 +2775,7 @@ func TestHandleReplicationTopologyFailure(t *testing.T) {
 }
 
 func TestHandleReplicationStatusNoDCs(t *testing.T) {
+	_, sess := setupTestAuth(t)
 	setupInfraTest(t)
 
 	oldConfig := handlerConfig
@@ -2778,6 +2783,7 @@ func TestHandleReplicationStatusNoDCs(t *testing.T) {
 	t.Cleanup(func() { handlerConfig = oldConfig })
 
 	req := httptest.NewRequest("GET", "/api/replication/status", nil)
+	addSessionCookie(req, sess)
 	w := httptest.NewRecorder()
 
 	handleReplicationStatusLive(w, req)
@@ -2791,6 +2797,7 @@ func TestHandleReplicationStatusNoDCs(t *testing.T) {
 }
 
 func TestHandleReplicationStatusWithDCs(t *testing.T) {
+	_, sess := setupTestAuth(t)
 	setupInfraTest(t)
 
 	oldConfig := handlerConfig
@@ -2803,6 +2810,7 @@ func TestHandleReplicationStatusWithDCs(t *testing.T) {
 	t.Cleanup(func() { handlerConfig = oldConfig })
 
 	req := httptest.NewRequest("GET", "/api/replication/status", nil)
+	addSessionCookie(req, sess)
 	w := httptest.NewRecorder()
 
 	handleReplicationStatusLive(w, req)

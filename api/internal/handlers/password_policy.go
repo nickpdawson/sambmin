@@ -25,7 +25,7 @@ func handleGetPasswordPolicy(w http.ResponseWriter, r *http.Request) {
 	output, err := runSambaTool(r.Context(), sess, "domain", "passwordsettings", "show")
 	if err != nil {
 		slog.Error("get password policy failed", "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "failed to retrieve password policy", err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func handleUpdatePasswordPolicy(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("update password policy failed", "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "password policy update failed", err)
 		return
 	}
 
@@ -103,7 +103,7 @@ func handleListPSOs(w http.ResponseWriter, r *http.Request) {
 	output, err := runSambaTool(r.Context(), sess, "domain", "passwordsettings", "pso", "list")
 	if err != nil {
 		slog.Error("list PSOs failed", "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "failed to list password settings objects", err)
 		return
 	}
 
@@ -165,7 +165,7 @@ func handleCreatePSO(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("create PSO failed", "name", req.Name, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "PSO creation failed", err)
 		return
 	}
 
@@ -213,7 +213,7 @@ func handleUpdatePSO(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("update PSO failed", "name", name, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "PSO update failed", err)
 		return
 	}
 
@@ -236,7 +236,7 @@ func handleDeletePSO(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "domain", "passwordsettings", "pso", "delete", name); err != nil {
 		slog.Error("delete PSO failed", "name", name, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "PSO deletion failed", err)
 		return
 	}
 
@@ -271,7 +271,7 @@ func handleApplyPSO(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "domain", "passwordsettings", "pso", "apply", name, req.Target); err != nil {
 		slog.Error("apply PSO failed", "pso", name, "target", req.Target, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "PSO apply failed", err)
 		return
 	}
 
@@ -306,7 +306,7 @@ func handleUnapplyPSO(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "domain", "passwordsettings", "pso", "unapply", name, req.Target); err != nil {
 		slog.Error("unapply PSO failed", "pso", name, "target", req.Target, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "PSO unapply failed", err)
 		return
 	}
 
@@ -334,7 +334,7 @@ func handleGetEffectivePolicy(w http.ResponseWriter, r *http.Request) {
 		output, err = runSambaTool(r.Context(), sess, "domain", "passwordsettings", "show")
 		if err != nil {
 			slog.Error("get effective policy failed", "username", username, "actor", sess.Username, "error", err)
-			respondError(w, http.StatusInternalServerError, err.Error())
+			respondSafeError(w, http.StatusInternalServerError, "failed to retrieve effective password policy", err)
 			return
 		}
 		policy := parsePasswordPolicy(output)
@@ -390,7 +390,7 @@ func handleTestPassword(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		slog.Error("get policy for test failed", "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "failed to retrieve password policy for testing", err)
 		return
 	}
 

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+
+	"github.com/nickdawson/sambmin/internal/validate"
 )
 
 // --- DNS Zone CRUD ---
@@ -27,11 +29,15 @@ func handleCreateDNSZone(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "zone name required")
 		return
 	}
+	if err := validate.DNSName(req.Name); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	server := "localhost"
 	if _, err := runSambaTool(r.Context(), sess, "dns", "zonecreate", server, req.Name); err != nil {
 		slog.Error("DNS zone create failed", "zone", req.Name, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondError(w, http.StatusInternalServerError, "DNS zone creation failed")
 		return
 	}
 
@@ -50,11 +56,15 @@ func handleDeleteDNSZone(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "zone name required")
 		return
 	}
+	if err := validate.DNSName(zone); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	server := "localhost"
 	if _, err := runSambaTool(r.Context(), sess, "dns", "zonedelete", server, zone); err != nil {
 		slog.Error("DNS zone delete failed", "zone", zone, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondError(w, http.StatusInternalServerError, "DNS zone deletion failed")
 		return
 	}
 
@@ -95,13 +105,21 @@ func handleCreateDNSRecord(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "name, type, and value required")
 		return
 	}
+	if err := validate.DNSName(req.Name); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validate.DNSType(req.Type); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	server := "localhost"
 	args := []string{"dns", "add", server, zone, req.Name, req.Type, req.Value}
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("DNS record create failed", "zone", zone, "name", req.Name, "type", req.Type, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondError(w, http.StatusInternalServerError, "DNS record creation failed")
 		return
 	}
 
@@ -137,13 +155,17 @@ func handleUpdateDNSRecord(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "type, oldValue, and newValue required")
 		return
 	}
+	if err := validate.DNSType(req.Type); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	server := "localhost"
 	args := []string{"dns", "update", server, zone, name, req.Type, req.OldValue, req.NewValue}
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("DNS record update failed", "zone", zone, "name", name, "type", req.Type, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondError(w, http.StatusInternalServerError, "DNS record update failed")
 		return
 	}
 
@@ -171,13 +193,17 @@ func handleDeleteDNSRecord(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "type and value query params required")
 		return
 	}
+	if err := validate.DNSType(recType); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	server := "localhost"
 	args := []string{"dns", "delete", server, zone, name, recType, value}
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("DNS record delete failed", "zone", zone, "name", name, "type", recType, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondError(w, http.StatusInternalServerError, "DNS record deletion failed")
 		return
 	}
 

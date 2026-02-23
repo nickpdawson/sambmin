@@ -13,10 +13,11 @@ import (
 
 // Session represents an authenticated user session.
 type Session struct {
-	ID       string
-	Username string
-	DN       string
-	Groups   []string
+	ID        string
+	Username  string
+	DN        string
+	Groups    []string
+	CSRFToken string
 	// encPW holds the user's password encrypted with the server key.
 	// Used for write operations via samba-tool.
 	encPW   []byte
@@ -75,18 +76,24 @@ func (s *Store) Create(username, dn string, groups []string, password string) (*
 		return nil, err
 	}
 
+	csrfToken, err := generateSessionID()
+	if err != nil {
+		return nil, fmt.Errorf("generate CSRF token: %w", err)
+	}
+
 	encPW, err := s.encryptPassword(password)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt session password: %w", err)
 	}
 
 	sess := &Session{
-		ID:       id,
-		Username: username,
-		DN:       dn,
-		Groups:   groups,
-		encPW:    encPW,
-		Expires:  time.Now().Add(s.timeout),
+		ID:        id,
+		Username:  username,
+		DN:        dn,
+		Groups:    groups,
+		CSRFToken: csrfToken,
+		encPW:     encPW,
+		Expires:   time.Now().Add(s.timeout),
 	}
 
 	s.mu.Lock()

@@ -32,7 +32,7 @@ func handleDeleteComputer(w http.ResponseWriter, r *http.Request) {
 
 	if err := dirClient.DeleteObject(r.Context(), dn, sess.DN, password); err != nil {
 		slog.Error("computer delete failed", "name", computerName, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "computer deletion failed", err)
 		return
 	}
 
@@ -75,7 +75,7 @@ func handleCreateComputer(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
 		slog.Error("computer create failed", "name", req.Name, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "computer creation failed", err)
 		return
 	}
 
@@ -111,7 +111,7 @@ func handleMoveComputer(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "computer", "move", computerName, req.TargetOU); err != nil {
 		slog.Error("computer move failed", "name", computerName, "targetOU", req.TargetOU, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "computer move failed", err)
 		return
 	}
 

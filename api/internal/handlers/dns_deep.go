@@ -211,7 +211,7 @@ func handleDNSZoneOptions(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, err := runSambaTool(r.Context(), sess, "dns", "zoneoptions", server, zone, "--aging="+val); err != nil {
 			slog.Error("DNS zone options update failed", "zone", zone, "option", "aging", "actor", sess.Username, "error", err)
-			respondError(w, http.StatusInternalServerError, err.Error())
+			respondSafeError(w, http.StatusInternalServerError, "DNS zone aging update failed", err)
 			return
 		}
 	}
@@ -220,7 +220,7 @@ func handleDNSZoneOptions(w http.ResponseWriter, r *http.Request) {
 		val := fmt.Sprintf("%d", *req.NoRefreshInterval)
 		if _, err := runSambaTool(r.Context(), sess, "dns", "zoneoptions", server, zone, "--norefreshinterval="+val); err != nil {
 			slog.Error("DNS zone options update failed", "zone", zone, "option", "norefreshinterval", "actor", sess.Username, "error", err)
-			respondError(w, http.StatusInternalServerError, err.Error())
+			respondSafeError(w, http.StatusInternalServerError, "DNS zone no-refresh interval update failed", err)
 			return
 		}
 	}
@@ -229,7 +229,7 @@ func handleDNSZoneOptions(w http.ResponseWriter, r *http.Request) {
 		val := fmt.Sprintf("%d", *req.RefreshInterval)
 		if _, err := runSambaTool(r.Context(), sess, "dns", "zoneoptions", server, zone, "--refreshinterval="+val); err != nil {
 			slog.Error("DNS zone options update failed", "zone", zone, "option", "refreshinterval", "actor", sess.Username, "error", err)
-			respondError(w, http.StatusInternalServerError, err.Error())
+			respondSafeError(w, http.StatusInternalServerError, "DNS zone refresh interval update failed", err)
 			return
 		}
 	}

@@ -184,7 +184,7 @@ func handleForceSyncLive(w http.ResponseWriter, r *http.Request) {
 	output, err := runSambaTool(r.Context(), sess, "drs", "replicate", req.DestDC, req.SourceDC, nc)
 	if err != nil {
 		slog.Error("force sync failed", "src", req.SourceDC, "dest", req.DestDC, "nc", nc, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "replication sync failed", err)
 		return
 	}
 
@@ -245,7 +245,7 @@ func handleCreateSiteLive(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := runSambaTool(r.Context(), sess, "sites", "create", req.Name); err != nil {
 		slog.Error("site create failed", "name", req.Name, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "site creation failed", err)
 		return
 	}
 
@@ -321,7 +321,7 @@ func handleTransferFSMOLive(w http.ResponseWriter, r *http.Request) {
 	output, err := runSambaTool(r.Context(), sess, args...)
 	if err != nil {
 		slog.Error("FSMO transfer failed", "role", req.Role, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "FSMO role transfer failed", err)
 		return
 	}
 

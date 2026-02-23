@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/nickdawson/sambmin/internal/models"
+	"github.com/nickdawson/sambmin/internal/validate"
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -57,10 +58,18 @@ func handleAddSPN(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "spn and account required")
 		return
 	}
+	if err := validate.SPN(req.SPN); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validate.SAMAccountName(req.Account); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	if _, err := runSambaTool(r.Context(), sess, "spn", "add", req.SPN, req.Account); err != nil {
 		slog.Error("spn add failed", "spn", req.SPN, "account", req.Account, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "SPN registration failed", err)
 		return
 	}
 
@@ -93,10 +102,18 @@ func handleDeleteSPN(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "spn and account required")
 		return
 	}
+	if err := validate.SPN(req.SPN); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validate.SAMAccountName(req.Account); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	if _, err := runSambaTool(r.Context(), sess, "spn", "delete", req.SPN, req.Account); err != nil {
 		slog.Error("spn delete failed", "spn", req.SPN, "account", req.Account, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "SPN removal failed", err)
 		return
 	}
 
@@ -167,10 +184,14 @@ func handleAddDelegationService(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "service SPN required")
 		return
 	}
+	if err := validate.SPN(req.Service); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	if _, err := runSambaTool(r.Context(), sess, "delegation", "add-service", account, req.Service); err != nil {
 		slog.Error("delegation add-service failed", "account", account, "service", req.Service, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "delegation service addition failed", err)
 		return
 	}
 
@@ -208,10 +229,14 @@ func handleRemoveDelegationService(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "service SPN required")
 		return
 	}
+	if err := validate.SPN(req.Service); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	if _, err := runSambaTool(r.Context(), sess, "delegation", "del-service", account, req.Service); err != nil {
 		slog.Error("delegation del-service failed", "account", account, "service", req.Service, "actor", sess.Username, "error", err)
-		respondError(w, http.StatusInternalServerError, err.Error())
+		respondSafeError(w, http.StatusInternalServerError, "delegation service removal failed", err)
 		return
 	}
 
