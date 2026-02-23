@@ -16,8 +16,21 @@ class ApiError extends Error {
   }
 }
 
+function getCsrfToken(): string {
+  const match = document.cookie.match(/(?:^|;\s*)sambmin_csrf=([^;]+)/);
+  return match ? match[1] : '';
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, headers = {} } = options;
+
+  // Attach CSRF token on mutation requests
+  if (method !== 'GET' && method !== 'HEAD') {
+    const token = getCsrfToken();
+    if (token) {
+      headers['X-CSRF-Token'] = token;
+    }
+  }
 
   const config: RequestInit = {
     method,
