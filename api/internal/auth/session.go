@@ -25,7 +25,7 @@ type Session struct {
 }
 
 // Store manages user sessions in memory.
-// Will be replaced with PostgreSQL-backed store later.
+// In-memory; sessions are lost on restart.
 type Store struct {
 	mu       sync.RWMutex
 	sessions map[string]*Session

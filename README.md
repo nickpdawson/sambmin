@@ -66,16 +66,6 @@ Sambmin uses a split read/write architecture: the Go backend reads AD data direc
 
 For details, see [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Beta Status
-
-Sambmin is deployed in production managing a 5-DC Samba AD domain with ~30 users, 48 computers, and 50 groups. It works. That said, this is a beta release and some rough edges remain:
-
-- **DRS Replication** monitoring requires Domain Admin login — the service account lacks DRS permissions by design
-- **Settings page** is UI-only (no backend persistence yet)
-- **Keytab export** requires root-level SAM access that web apps shouldn't have — shows CLI fallback commands instead
-- **Docker** deployment is not yet available
-- **PostgreSQL** integration for audit/sessions is partially implemented (in-memory sessions work, audit logs to stdout)
-
 ## Building & Testing
 
 ```bash
