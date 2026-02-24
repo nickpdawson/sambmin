@@ -57,6 +57,8 @@ ralph-*.log
 ralph-*.md
 sambmin-ralph.sh
 sambmin-prd.md
+sambmin-prd.json
+sambmin-fix.sh
 
 # Security audit (keep private)
 security_issues.md
