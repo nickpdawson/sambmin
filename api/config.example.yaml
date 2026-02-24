@@ -29,15 +29,6 @@ kerberos:
   keytab_path: "/usr/local/etc/sambmin/sambmin.keytab"
   implementation: "heimdal"  # "heimdal" or "mit"
 
-# PostgreSQL — app data only (audit, sessions, config)
-database:
-  host: "localhost"
-  port: 5432
-  name: "sambmin"
-  user: "sambmin"
-  password: ""  # Use .env or environment variable SAMBMIN_DB_PASSWORD
-  ssl_mode: "disable"
-
 # Path to Python utility scripts
 scripts_path: "/usr/local/share/sambmin/scripts"
 

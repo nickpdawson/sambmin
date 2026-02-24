@@ -45,13 +45,6 @@ kerberos:
   keytab_path: /usr/local/etc/sambmin/sambmin.keytab
   implementation: heimdal
 
-# PostgreSQL (not yet configured)
-database:
-  host: localhost
-  port: 5432
-  name: sambmin
-  ssl_mode: disable
-
 # Python scripts
 scripts_path: /usr/local/share/sambmin/scripts
 

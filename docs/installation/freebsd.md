@@ -11,30 +11,11 @@ FreeBSD is Sambmin's primary deployment platform. This guide covers a complete i
 
 ## 1. Install Packages
 
-Run the provided script or install manually:
-
 ```bash
-# Using the provided script
-sh deploy/freebsd/pkg-install.sh
-
-# Or manually
-pkg install -y python311 postgresql15-server postgresql15-client nginx
+pkg install -y python311 nginx
 ```
 
-## 2. PostgreSQL Setup
-
-```bash
-# Enable and initialize
-sysrc postgresql_enable="YES"
-service postgresql initdb
-service postgresql start
-
-# Create database and user
-su - postgres -c 'createuser sambmin'
-su - postgres -c 'createdb -O sambmin sambmin'
-```
-
-## 3. Create Service Account
+## 2. Create Service Account
 
 Create a dedicated service account in your Samba AD for Sambmin's read-only LDAP queries:
 
@@ -47,7 +28,7 @@ samba-tool user setexpiry sambmin-svc --noexpiry
 
 The account needs only default read access — no additional group memberships required.
 
-## 4. Deploy Sambmin
+## 3. Deploy Sambmin
 
 ### Build (on your development machine)
 
@@ -72,7 +53,7 @@ scp -r scripts root@server:/home/administrator/sambmin/
 scp api/config.example.yaml root@server:/home/administrator/sambmin/config.yaml
 ```
 
-## 5. Configure
+## 4. Configure
 
 Edit `/home/administrator/sambmin/config.yaml`:
 
@@ -91,13 +72,6 @@ bind_dn: "CN=sambmin-svc,CN=Users,DC=yourdomain,DC=com"
 
 scripts_path: "/home/administrator/sambmin/scripts"
 
-database:
-  host: "localhost"
-  port: 5432
-  name: "sambmin"
-  user: "sambmin"
-  ssl_mode: "disable"
-
 session_timeout_hours: 8
 ```
 
@@ -110,7 +84,7 @@ EOF
 chmod 600 /home/administrator/sambmin/secrets.env
 ```
 
-## 6. TLS Setup
+## 5. TLS Setup
 
 ### Option A: Let's Encrypt (public-facing)
 
@@ -129,7 +103,7 @@ sh deploy/tls/local-ca.sh sambmin.yourdomain.com
 
 This generates a CA and server certificate. Distribute the CA cert to client machines.
 
-## 7. nginx Configuration
+## 6. nginx Configuration
 
 Copy and edit the provided nginx config:
 
@@ -148,7 +122,7 @@ sysrc nginx_enable="YES"
 service nginx start
 ```
 
-## 8. rc.d Service Setup
+## 7. rc.d Service Setup
 
 ```bash
 # Install the service script
@@ -172,7 +146,7 @@ The service script handles:
 - PID file management
 - Log file at `/var/log/sambmin.log`
 
-## 9. Verify
+## 8. Verify
 
 ```bash
 # Check the service is running
