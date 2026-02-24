@@ -130,8 +130,8 @@ sambmin/
 
 ## Known Limitations
 
-- **In-memory sessions** — Sessions are lost on server restart. PostgreSQL-backed sessions are planned.
+- **In-memory sessions** — Sessions are lost on server restart.
 - **Single-server** — No clustering or HA for the Sambmin server itself (nginx upstream handles DC failover for LDAP).
-- **Audit to stdout** — Audit logs go to structured JSON stdout/file. PostgreSQL audit storage is planned.
+- **Audit to stdout** — Audit logs go to structured JSON stdout/file.
 - **No WebSocket** — Dashboard and replication status require manual refresh; no real-time push.
 - **DRS permissions** — `drs showrepl` requires Domain Admin; the read-only service account gets `WERR_DS_DRA_ACCESS_DENIED`. Users must log in as Domain Admin to view replication details.

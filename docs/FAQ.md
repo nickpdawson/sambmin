@@ -32,8 +32,8 @@ Any modern browser with JavaScript enabled: Chrome, Firefox, Safari, Edge. No IE
 **Why does Sambmin use Python scripts for writes instead of direct LDAP?**
 `samba-tool` handles Samba-internal consistency checks — SID allocation, RID pool management, schema validation, DNS record formatting. Reimplementing these in Go would be fragile and risk data corruption. The Python scripts are thin wrappers that accept JSON and return JSON, keeping the integration clean.
 
-**Why are sessions in memory instead of PostgreSQL?**
-PostgreSQL-backed sessions are planned. The current in-memory implementation works well for single-server deployments and was prioritized to ship the beta. The trade-off is that sessions are lost on server restart — users have to log in again.
+**Why are sessions in memory?**
+The in-memory implementation works well for single-server deployments. The trade-off is that sessions are lost on server restart — users have to log in again.
 
 **Can I run multiple Sambmin instances for HA?**
 Not currently. In-memory sessions mean you'd need sticky sessions or a shared session store. This is on the roadmap.

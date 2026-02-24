@@ -14,8 +14,6 @@ A complete example is provided in `api/config.example.yaml`.
 |----------|----------|-------------|
 | `SAMBMIN_BIND_PW` | Yes | LDAP service account password. Never put this in config.yaml. |
 | `SAMBMIN_CONFIG` | No | Path to config.yaml. Default: `/usr/local/etc/sambmin/config.yaml` |
-| `SAMBMIN_DB_PASSWORD` | No | PostgreSQL password (if not set in config.yaml) |
-
 ## Full Config Reference
 
 ```yaml
@@ -65,18 +63,6 @@ kerberos:
   kdc: "dc1.example.com"          # KDC hostname
   keytab_path: "/usr/local/etc/sambmin/sambmin.keytab"  # Optional keytab file
   implementation: "heimdal"       # "heimdal" or "mit"
-
-# ─── Database ─────────────────────────────────────────────
-
-# PostgreSQL for app data (audit logs, sessions, config).
-# AD data is never stored in PostgreSQL.
-database:
-  host: "localhost"
-  port: 5432
-  name: "sambmin"
-  user: "sambmin"
-  password: ""                    # Use SAMBMIN_DB_PASSWORD env var instead
-  ssl_mode: "disable"             # "disable", "require", "verify-ca", "verify-full"
 
 # ─── Scripts ──────────────────────────────────────────────
 

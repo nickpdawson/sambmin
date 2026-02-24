@@ -13,20 +13,10 @@ This guide covers installation on Ubuntu/Debian. Adapt package names for other d
 
 ```bash
 sudo apt update
-sudo apt install -y python3 postgresql nginx
+sudo apt install -y python3 nginx
 ```
 
-## 2. PostgreSQL Setup
-
-```bash
-sudo systemctl enable postgresql
-sudo systemctl start postgresql
-
-sudo -u postgres createuser sambmin
-sudo -u postgres createdb -O sambmin sambmin
-```
-
-## 3. Create Service Account
+## 2. Create Service Account
 
 Same as FreeBSD — create a dedicated read-only service account in your Samba AD:
 
@@ -36,7 +26,7 @@ samba-tool user setpassword sambmin-svc
 samba-tool user setexpiry sambmin-svc --noexpiry
 ```
 
-## 4. Deploy Sambmin
+## 3. Deploy Sambmin
 
 ### Build (on your development machine)
 
@@ -56,14 +46,14 @@ sudo cp -r scripts/* /opt/sambmin/scripts/
 sudo cp api/config.example.yaml /opt/sambmin/config.yaml
 ```
 
-## 5. Create System User
+## 4. Create System User
 
 ```bash
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin sambmin
 sudo chown -R sambmin:sambmin /opt/sambmin
 ```
 
-## 6. Configure
+## 5. Configure
 
 Edit `/opt/sambmin/config.yaml` — see [CONFIGURATION.md](../CONFIGURATION.md) for full reference.
 
@@ -78,7 +68,7 @@ sudo chmod 600 /opt/sambmin/secrets.env
 sudo chown sambmin:sambmin /opt/sambmin/secrets.env
 ```
 
-## 7. systemd Service
+## 6. systemd Service
 
 Copy the provided unit file:
 
@@ -96,7 +86,7 @@ sudo systemctl status sambmin
 sudo journalctl -u sambmin -f
 ```
 
-## 8. TLS Setup
+## 7. TLS Setup
 
 ### Let's Encrypt (recommended for public-facing)
 
@@ -113,7 +103,7 @@ Use the provided script:
 sudo sh deploy/tls/local-ca.sh sambmin.yourdomain.com
 ```
 
-## 9. nginx Configuration
+## 8. nginx Configuration
 
 Create `/etc/nginx/sites-available/sambmin`:
 
