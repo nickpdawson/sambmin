@@ -24,7 +24,7 @@ type Config struct {
 	// Kerberos
 	Kerberos KerberosConfig `yaml:"kerberos"`
 
-	// PostgreSQL
+	// Database (planned, not yet used)
 	Database DatabaseConfig `yaml:"database"`
 
 	// Python scripts path

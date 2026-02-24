@@ -49,7 +49,6 @@ From `web/package.json`:
 
 | Software | License | Role |
 |----------|---------|------|
-| [PostgreSQL](https://www.postgresql.org/) | PostgreSQL License (MIT-like) | App data storage (audit, sessions, config) |
 | [nginx](https://nginx.org/) | BSD-2-Clause | Reverse proxy, static file serving, TLS termination |
 | [Python](https://www.python.org/) | PSF License | Script runtime for samba-tool wrappers (stdlib only, no pip packages) |
 
@@ -69,6 +68,5 @@ The Python scripts in `scripts/` use only the Python standard library. No extern
 All dependencies use licenses compatible with GPLv3:
 - **MIT, BSD-2-Clause, BSD-3-Clause, ISC** — Permissive, compatible with GPLv3
 - **Apache-2.0** — Compatible with GPLv3 (one-way: Apache code can be included in GPLv3 projects)
-- **PostgreSQL License** — MIT-like permissive, compatible with GPLv3
 - **SIL OFL 1.1** — Font-specific open license, no conflict with GPLv3
 - **PSF License** — Permissive, compatible with GPLv3

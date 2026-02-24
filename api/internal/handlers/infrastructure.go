@@ -622,10 +622,10 @@ func parseFSMORoles(output string) []fsmoRoleEntry {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Audit Log (placeholder with in-memory store, PostgreSQL in M20)
+// Audit Log (in-memory store)
 // ──────────────────────────────────────────────────────────────────────────────
 
-// auditEntries is an in-memory audit log store. Replaced with PostgreSQL in M20.
+// auditEntries is an in-memory audit log store (max 10,000 entries).
 var auditEntries []models.AuditEntry
 var auditMu sync.Mutex
 var auditNextID int64 = 1

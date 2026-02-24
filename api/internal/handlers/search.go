@@ -16,7 +16,7 @@ import (
 	goldap "github.com/go-ldap/ldap/v3"
 )
 
-// savedQueries is an in-memory store for saved queries (PostgreSQL in M20).
+// savedQueries is an in-memory store for saved queries.
 var (
 	savedQueries   = make(map[string]models.SavedQuery)
 	savedQueriesMu sync.RWMutex
