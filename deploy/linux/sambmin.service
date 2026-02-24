@@ -1,0 +1,33 @@
+[Unit]
+Description=Sambmin - Samba AD Management
+Documentation=https://github.com/yourorg/sambmin
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=sambmin
+Group=sambmin
+WorkingDirectory=/opt/sambmin
+EnvironmentFile=/opt/sambmin/secrets.env
+ExecStart=/opt/sambmin/sambmin
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sambmin
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sambmin
+
+[Install]
+WantedBy=multi-user.target
