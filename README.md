@@ -36,6 +36,28 @@ Built for organizations running Samba AD as their directory service, Sambmin rep
 ![DNS](docs/screenshots/dns.png)
 -->
 
+## Beta Status
+
+Sambmin is in **public beta**. The core directory management features are functional and tested against live Samba 4.20 environments, but some features have known limitations:
+
+**What works well:**
+- User, group, computer, contact, and OU management (full CRUD)
+- DNS zone and record management (Samba internal DNS and BIND9 DLZ)
+- GPO browsing and OU linking
+- Dashboard with DC health monitoring
+- Settings persistence (saved via GUI, no restart needed for most changes)
+- Authentication with session encryption and RBAC
+- Mock mode for exploring the UI without a live AD environment
+
+**Known limitations:**
+- **Replication monitoring** requires logging in as a Domain Admin — the read-only service account lacks DRS permissions, so the dashboard replication widget will show an error until you log in with admin credentials
+- **Keytab export** requires root-level SAM access on the DC; the UI shows equivalent CLI commands as a fallback
+- **TLS certificate management** in Settings is display-only — TLS is handled by your reverse proxy (nginx/Apache), not by Sambmin
+- **Write operations** require `samba-tool` and Python 3.11+ installed on the server; without them, Sambmin operates in read-only mode
+- **SPN search** currently requires an account name (e.g., `webserver$`), not an SPN service name
+
+**Tested against:** Samba 4.20 on FreeBSD 14.x with Heimdal Kerberos. Other Samba versions and MIT Kerberos should work but are not yet verified — feedback welcome.
+
 ## Quick Start
 
 ```bash
