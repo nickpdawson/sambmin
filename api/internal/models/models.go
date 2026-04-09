@@ -318,7 +318,7 @@ type GPOLink struct {
 
 // SPN represents a Service Principal Name entry
 type SPN struct {
-	Value   string `json:"value"`   // e.g., "HTTP/myhost.dzsec.net"
+	Value   string `json:"value"`   // e.g., "HTTP/myhost.example.com"
 	Account string `json:"account"` // sAMAccountName
 }
 

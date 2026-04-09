@@ -83,7 +83,7 @@ function buildCLI(
       data = '<data>';
   }
 
-  return `samba-tool dns ${action} dc1.dzsec.net ${zoneName} ${name} ${type} ${data}`;
+  return `samba-tool dns ${action} dc1.example.com ${zoneName} ${name} ${type} ${data}`;
 }
 
 export default function CreateRecordDrawer({
@@ -324,7 +324,7 @@ export default function CreateRecordDrawer({
             rules={[{ required: true, message: 'Target hostname is required' }]}
           >
             <Input
-              placeholder="target.dzsec.net"
+              placeholder="target.example.com"
               style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}
             />
           </Form.Item>
@@ -338,7 +338,7 @@ export default function CreateRecordDrawer({
               rules={[{ required: true, message: 'Mail server is required' }]}
             >
               <Input
-                placeholder="mail.dzsec.net"
+                placeholder="mail.example.com"
                 style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}
               />
             </Form.Item>
@@ -361,7 +361,7 @@ export default function CreateRecordDrawer({
               rules={[{ required: true, message: 'Target hostname is required' }]}
             >
               <Input
-                placeholder="dc1.dzsec.net"
+                placeholder="dc1.example.com"
                 style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}
               />
             </Form.Item>
@@ -417,7 +417,7 @@ export default function CreateRecordDrawer({
             rules={[{ required: true, message: 'Nameserver is required' }]}
           >
             <Input
-              placeholder="ns1.dzsec.net"
+              placeholder="ns1.example.com"
               style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}
             />
           </Form.Item>
@@ -442,7 +442,7 @@ export default function CreateRecordDrawer({
               rules={[{ required: true, message: 'Hostname is required' }]}
             >
               <Input
-                placeholder="dc1.dzsec.net"
+                placeholder="dc1.example.com"
                 style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}
               />
             </Form.Item>

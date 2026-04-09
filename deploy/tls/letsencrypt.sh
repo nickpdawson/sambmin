@@ -4,8 +4,8 @@
 
 set -e
 
-DOMAIN="${1:-sambmin.dzsec.net}"
-EMAIL="${2:-admin@dzsec.net}"
+DOMAIN="${1:-sambmin.example.com}"
+EMAIL="${2:-admin@example.com}"
 
 echo "Setting up Let's Encrypt for ${DOMAIN}..."
 

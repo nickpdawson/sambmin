@@ -39,11 +39,12 @@ Built for organizations running Samba AD as their directory service, Sambmin rep
 ## Quick Start
 
 ```bash
-# Build the backend (cross-compile for FreeBSD from macOS/Linux)
-cd api && GOOS=freebsd GOARCH=amd64 go build -o sambmin ./cmd/sambmin/
+# Build everything (backend + frontend)
+make build      # builds for current platform
+make frontend   # builds the React frontend
 
-# Build the frontend
-cd web && npm install && npm run build
+# Or cross-compile for all supported platforms
+make build-all  # FreeBSD, Linux, macOS (amd64 + arm64)
 
 # Configure
 cp api/config.example.yaml /usr/local/etc/sambmin/config.yaml
@@ -54,6 +55,8 @@ export SAMBMIN_BIND_PW="your-service-account-password"
 export SAMBMIN_CONFIG="/usr/local/etc/sambmin/config.yaml"
 ./sambmin
 ```
+
+Sambmin runs in **mock mode** when no domain controllers are configured, allowing you to explore the UI without a live AD environment.
 
 For complete installation instructions, see:
 - [FreeBSD Installation Guide](docs/installation/freebsd.md) (primary platform)
@@ -69,8 +72,10 @@ For details, see [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Building & Testing
 
 ```bash
-cd api && go test ./...     # 221 tests
-cd web && npm run build     # TypeScript + production build
+make test       # run Go tests (221 tests)
+make build      # build backend with version injection
+make frontend   # build React frontend for production
+make dist       # package release tarballs for all platforms
 ```
 
 See [BUILD.md](docs/BUILD.md) for prerequisites and detailed build instructions.

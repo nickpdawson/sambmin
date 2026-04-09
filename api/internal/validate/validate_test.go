@@ -67,7 +67,7 @@ func TestDNSName(t *testing.T) {
 }
 
 func TestSPN(t *testing.T) {
-	valid := []string{"HTTP/web.example.com", "cifs/fileserver.test.com", "MSSQLSvc/sql01.dzsec.net"}
+	valid := []string{"HTTP/web.example.com", "cifs/fileserver.test.com", "MSSQLSvc/sql01.example.com"}
 	for _, v := range valid {
 		if err := SPN(v); err != nil {
 			t.Errorf("SPN(%q) should be valid, got %v", v, err)
@@ -142,13 +142,13 @@ func TestAttributes(t *testing.T) {
 }
 
 func TestBaseDN(t *testing.T) {
-	if err := BaseDN("CN=Users,DC=dzsec,DC=net", "DC=dzsec,DC=net"); err != nil {
+	if err := BaseDN("CN=Users,DC=example,DC=com", "DC=example,DC=com"); err != nil {
 		t.Errorf("valid baseDN should pass, got %v", err)
 	}
-	if err := BaseDN("CN=Users,DC=evil,DC=com", "DC=dzsec,DC=net"); err == nil {
+	if err := BaseDN("CN=Users,DC=evil,DC=com", "DC=example,DC=com"); err == nil {
 		t.Error("baseDN not ending in domain suffix should be rejected")
 	}
-	if err := BaseDN("", "DC=dzsec,DC=net"); err == nil {
+	if err := BaseDN("", "DC=example,DC=com"); err == nil {
 		t.Error("empty baseDN should be rejected")
 	}
 }

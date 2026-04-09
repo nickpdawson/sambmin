@@ -2271,7 +2271,7 @@ func TestBuildFilterFromVisual(t *testing.T) {
 // --- Password Policy Parser Tests ---
 
 func TestParsePasswordPolicy(t *testing.T) {
-	output := `Password informations for domain 'DC=dzsec,DC=net'
+	output := `Password informations for domain 'DC=example,DC=com'
 
 Password complexity: on
 Store plaintext passwords: off
@@ -2359,8 +2359,8 @@ if echo "$@" | grep -q "serverinfo"; then
   exit 0
 fi
 if echo "$@" | grep -q "zoneinfo"; then
-  echo "Zone information for 'dzsec.net'"
-  echo "pszZoneName                 : dzsec.net"
+  echo "Zone information for 'example.com'"
+  echo "pszZoneName                 : example.com"
   echo "Flags                       : DNS_RPC_ZONE_DSINTEGRATED DNS_RPC_ZONE_UPDATE_SECURE"
   echo "ZoneType                    : DNS_ZONE_TYPE_PRIMARY"
   echo "fAging                      : 1"
@@ -2429,7 +2429,7 @@ func TestHandleDNSZoneInfoSuccess(t *testing.T) {
 
 	mux := newMuxWithRoute("GET", "/api/dns/zones/{zone}/info", handleDNSZoneInfo)
 
-	req := httptest.NewRequest("GET", "/api/dns/zones/dzsec.net/info", nil)
+	req := httptest.NewRequest("GET", "/api/dns/zones/example.com/info", nil)
 	w := httptest.NewRecorder()
 
 	mux.ServeHTTP(w, req)
@@ -2454,7 +2454,7 @@ func TestHandleDNSZoneInfoFailure(t *testing.T) {
 
 	mux := newMuxWithRoute("GET", "/api/dns/zones/{zone}/info", handleDNSZoneInfo)
 
-	req := httptest.NewRequest("GET", "/api/dns/zones/dzsec.net/info", nil)
+	req := httptest.NewRequest("GET", "/api/dns/zones/example.com/info", nil)
 	w := httptest.NewRecorder()
 
 	mux.ServeHTTP(w, req)
@@ -2471,7 +2471,7 @@ func TestHandleDNSZoneOptionsSuccess(t *testing.T) {
 	mux := newMuxWithRoute("PUT", "/api/dns/zones/{zone}/options", handleDNSZoneOptions)
 
 	body := `{"aging":true,"noRefreshInterval":168,"refreshInterval":168}`
-	req := httptest.NewRequest("PUT", "/api/dns/zones/dzsec.net/options", strings.NewReader(body))
+	req := httptest.NewRequest("PUT", "/api/dns/zones/example.com/options", strings.NewReader(body))
 	addSessionCookie(req, sess)
 	w := httptest.NewRecorder()
 
@@ -2489,7 +2489,7 @@ func TestHandleDNSZoneOptionsNoAuth(t *testing.T) {
 	mux := newMuxWithRoute("PUT", "/api/dns/zones/{zone}/options", handleDNSZoneOptions)
 
 	body := `{"aging":true}`
-	req := httptest.NewRequest("PUT", "/api/dns/zones/dzsec.net/options", strings.NewReader(body))
+	req := httptest.NewRequest("PUT", "/api/dns/zones/example.com/options", strings.NewReader(body))
 	w := httptest.NewRecorder()
 
 	mux.ServeHTTP(w, req)
@@ -2506,7 +2506,7 @@ func TestHandleDNSZoneOptionsFailure(t *testing.T) {
 	mux := newMuxWithRoute("PUT", "/api/dns/zones/{zone}/options", handleDNSZoneOptions)
 
 	body := `{"aging":true}`
-	req := httptest.NewRequest("PUT", "/api/dns/zones/dzsec.net/options", strings.NewReader(body))
+	req := httptest.NewRequest("PUT", "/api/dns/zones/example.com/options", strings.NewReader(body))
 	addSessionCookie(req, sess)
 	w := httptest.NewRecorder()
 
@@ -2520,7 +2520,7 @@ func TestHandleDNSZoneOptionsFailure(t *testing.T) {
 func TestHandleDNSQuerySuccess(t *testing.T) {
 	setupDNSDeepTest(t)
 
-	body := `{"server":"localhost","zone":"dzsec.net","name":"@","type":"A"}`
+	body := `{"server":"localhost","zone":"example.com","name":"@","type":"A"}`
 	req := httptest.NewRequest("POST", "/api/dns/query", strings.NewReader(body))
 	w := httptest.NewRecorder()
 
@@ -2565,7 +2565,7 @@ func TestHandleDNSQueryDefaultServer(t *testing.T) {
 	setupDNSDeepTest(t)
 
 	// No server specified — should default to localhost
-	body := `{"zone":"dzsec.net","name":"@","type":"ALL"}`
+	body := `{"zone":"example.com","name":"@","type":"ALL"}`
 	req := httptest.NewRequest("POST", "/api/dns/query", strings.NewReader(body))
 	w := httptest.NewRecorder()
 
@@ -2598,7 +2598,7 @@ func TestHandleDNSZoneOptionsBadJSON(t *testing.T) {
 	mux := newMuxWithRoute("PUT", "/api/dns/zones/{zone}/options", handleDNSZoneOptions)
 
 	body := `not json`
-	req := httptest.NewRequest("PUT", "/api/dns/zones/dzsec.net/options", strings.NewReader(body))
+	req := httptest.NewRequest("PUT", "/api/dns/zones/example.com/options", strings.NewReader(body))
 	addSessionCookie(req, sess)
 	w := httptest.NewRecorder()
 
@@ -3118,11 +3118,11 @@ func TestHandleListAuditLogWithEntries(t *testing.T) {
 // --- Parser Tests ---
 
 func TestParseFSMORoles(t *testing.T) {
-	input := `SchemaMasterRole owner: CN=NTDS Settings,CN=BRIDGER,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=dzsec,DC=net
-InfrastructureMasterRole owner: CN=NTDS Settings,CN=BRIDGER,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=dzsec,DC=net
-RidAllocationMasterRole owner: CN=NTDS Settings,CN=SHOWDOWN,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=dzsec,DC=net
-PdcEmulationMasterRole owner: CN=NTDS Settings,CN=BRIDGER,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=dzsec,DC=net
-DomainNamingMasterRole owner: CN=NTDS Settings,CN=BRIDGER,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=dzsec,DC=net`
+	input := `SchemaMasterRole owner: CN=NTDS Settings,CN=BRIDGER,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=example,DC=com
+InfrastructureMasterRole owner: CN=NTDS Settings,CN=BRIDGER,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=example,DC=com
+RidAllocationMasterRole owner: CN=NTDS Settings,CN=SHOWDOWN,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=example,DC=com
+PdcEmulationMasterRole owner: CN=NTDS Settings,CN=BRIDGER,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=example,DC=com
+DomainNamingMasterRole owner: CN=NTDS Settings,CN=BRIDGER,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=example,DC=com`
 
 	roles := parseFSMORoles(input)
 
@@ -3755,15 +3755,15 @@ func TestHandleRemoveDelegationServiceSuccess(t *testing.T) {
 func TestParseGPOListAll(t *testing.T) {
 	input := `GPO          : {31B2F340-016D-11D2-945F-00C04FB984F9}
 display name : Default Domain Policy
-path         : \\dzsec.net\sysvol\dzsec.net\Policies\{31B2F340-016D-11D2-945F-00C04FB984F9}
-dn           : CN={31B2F340-016D-11D2-945F-00C04FB984F9},CN=Policies,CN=System,DC=dzsec,DC=net
+path         : \\example.com\sysvol\example.com\Policies\{31B2F340-016D-11D2-945F-00C04FB984F9}
+dn           : CN={31B2F340-016D-11D2-945F-00C04FB984F9},CN=Policies,CN=System,DC=example,DC=com
 version      : 65539
 flags        : NONE
 
 GPO          : {6AC1786C-016F-11D2-945F-00C04FB984F9}
 display name : Default Domain Controllers Policy
-path         : \\dzsec.net\sysvol\dzsec.net\Policies\{6AC1786C-016F-11D2-945F-00C04FB984F9}
-dn           : CN={6AC1786C-016F-11D2-945F-00C04FB984F9},CN=Policies,CN=System,DC=dzsec,DC=net
+path         : \\example.com\sysvol\example.com\Policies\{6AC1786C-016F-11D2-945F-00C04FB984F9}
+dn           : CN={6AC1786C-016F-11D2-945F-00C04FB984F9},CN=Policies,CN=System,DC=example,DC=com
 version      : 1
 flags        : NONE
 `

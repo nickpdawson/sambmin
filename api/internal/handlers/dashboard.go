@@ -95,12 +95,12 @@ func handleRecentActivityMock(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	respondJSON(w, http.StatusOK, map[string]any{
 		"activities": []recentActivity{
-			{Timestamp: now.Add(-3 * time.Minute).Format(time.RFC3339), Actor: "administrator", Action: "Password Reset", Object: "CN=jsmith,OU=Users,DC=dzsec,DC=net", Success: true},
-			{Timestamp: now.Add(-12 * time.Minute).Format(time.RFC3339), Actor: "administrator", Action: "User Disabled", Object: "CN=contractor01,OU=Contractors,DC=dzsec,DC=net", Success: true},
-			{Timestamp: now.Add(-25 * time.Minute).Format(time.RFC3339), Actor: "helpdesk", Action: "Account Unlock", Object: "CN=mjones,OU=Users,DC=dzsec,DC=net", Success: true},
-			{Timestamp: now.Add(-1 * time.Hour).Format(time.RFC3339), Actor: "administrator", Action: "DNS Record Created", Object: "mail.dzsec.net (A: 10.10.1.50)", Success: true},
-			{Timestamp: now.Add(-2 * time.Hour).Format(time.RFC3339), Actor: "administrator", Action: "Group Member Added", Object: "CN=VPN-Users,OU=Groups,DC=dzsec,DC=net", Success: true},
-			{Timestamp: now.Add(-3 * time.Hour).Format(time.RFC3339), Actor: "administrator", Action: "User Created", Object: "CN=newuser,OU=Users,DC=dzsec,DC=net", Success: true},
+			{Timestamp: now.Add(-3 * time.Minute).Format(time.RFC3339), Actor: "administrator", Action: "Password Reset", Object: "CN=jsmith,OU=Users,DC=example,DC=com", Success: true},
+			{Timestamp: now.Add(-12 * time.Minute).Format(time.RFC3339), Actor: "administrator", Action: "User Disabled", Object: "CN=contractor01,OU=Contractors,DC=example,DC=com", Success: true},
+			{Timestamp: now.Add(-25 * time.Minute).Format(time.RFC3339), Actor: "helpdesk", Action: "Account Unlock", Object: "CN=mjones,OU=Users,DC=example,DC=com", Success: true},
+			{Timestamp: now.Add(-1 * time.Hour).Format(time.RFC3339), Actor: "administrator", Action: "DNS Record Created", Object: "mail.example.com (A: 10.10.1.50)", Success: true},
+			{Timestamp: now.Add(-2 * time.Hour).Format(time.RFC3339), Actor: "administrator", Action: "Group Member Added", Object: "CN=VPN-Users,OU=Groups,DC=example,DC=com", Success: true},
+			{Timestamp: now.Add(-3 * time.Hour).Format(time.RFC3339), Actor: "administrator", Action: "User Created", Object: "CN=newuser,OU=Users,DC=example,DC=com", Success: true},
 			{Timestamp: now.Add(-5 * time.Hour).Format(time.RFC3339), Actor: "administrator", Action: "GPO Linked", Object: "Default Domain Policy → OU=Workstations", Success: true},
 			{Timestamp: now.Add(-8 * time.Hour).Format(time.RFC3339), Actor: "administrator", Action: "Force Replication", Object: "DC1-BOZEMAN → DC3-SEATTLE", Success: false},
 		},

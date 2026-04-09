@@ -7,9 +7,9 @@ func TestExtractCN(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"CN=Domain Admins,CN=Users,DC=dzsec,DC=net", "Domain Admins"},
-		{"CN=DnsAdmins,CN=Users,DC=dzsec,DC=net", "DnsAdmins"},
-		{"CN=Account Operators,CN=Builtin,DC=dzsec,DC=net", "Account Operators"},
+		{"CN=Domain Admins,CN=Users,DC=example,DC=com", "Domain Admins"},
+		{"CN=DnsAdmins,CN=Users,DC=example,DC=com", "DnsAdmins"},
+		{"CN=Account Operators,CN=Builtin,DC=example,DC=com", "Account Operators"},
 		{"Domain Admins", "Domain Admins"},
 		{"cn=lowercase,DC=test,DC=com", "lowercase"},
 		{"CN=single", "single"},
@@ -45,7 +45,7 @@ func TestHasRole(t *testing.T) {
 		},
 		{
 			name:   "domain admin has admin role",
-			groups: []string{"CN=Domain Admins,CN=Users,DC=dzsec,DC=net"},
+			groups: []string{"CN=Domain Admins,CN=Users,DC=example,DC=com"},
 			role:   RoleAdmin,
 			want:   true,
 		},
@@ -111,7 +111,7 @@ func TestHasRole(t *testing.T) {
 		},
 		{
 			name:   "full DN with case insensitive match",
-			groups: []string{"CN=domain admins,CN=Users,DC=dzsec,DC=net"},
+			groups: []string{"CN=domain admins,CN=Users,DC=example,DC=com"},
 			role:   RoleAdmin,
 			want:   true,
 		},

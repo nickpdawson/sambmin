@@ -24,9 +24,6 @@ type Config struct {
 	// Kerberos
 	Kerberos KerberosConfig `yaml:"kerberos"`
 
-	// Database (planned, not yet used)
-	Database DatabaseConfig `yaml:"database"`
-
 	// Python scripts path
 	ScriptsPath string `yaml:"scripts_path"`
 
@@ -50,28 +47,13 @@ type KerberosConfig struct {
 	Implementation string `yaml:"implementation"`
 }
 
-type DatabaseConfig struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	Name     string `yaml:"name"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	SSLMode  string `yaml:"ssl_mode"`
-}
-
-func Load() (*Config, error) {
+func Load() (*Config, string, error) {
 	cfg := &Config{
 		BindAddr:       "127.0.0.1",
 		Port:           8443,
 		AllowedOrigins: []string{"http://localhost:5173"},
 		ScriptsPath:    "/usr/local/share/sambmin/scripts",
 		SessionTimeout: 8,
-		Database: DatabaseConfig{
-			Host:    "localhost",
-			Port:    5432,
-			Name:    "sambmin",
-			SSLMode: "disable",
-		},
 	}
 
 	configPath := os.Getenv("SAMBMIN_CONFIG")
@@ -82,14 +64,14 @@ func Load() (*Config, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return cfg, nil // Use defaults if no config file
+			return cfg, configPath, nil // Use defaults if no config file
 		}
-		return nil, fmt.Errorf("read config: %w", err)
+		return nil, "", fmt.Errorf("read config: %w", err)
 	}
 
 	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
+		return nil, "", fmt.Errorf("parse config: %w", err)
 	}
 
-	return cfg, nil
+	return cfg, configPath, nil
 }

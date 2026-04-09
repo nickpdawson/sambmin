@@ -5,7 +5,7 @@
 
 set -e
 
-DOMAIN="${1:-sambmin.dzsec.net}"
+DOMAIN="${1:-sambmin.example.com}"
 CA_DIR="/usr/local/etc/ssl/sambmin-ca"
 CERT_DIR="/usr/local/etc/ssl"
 DAYS_CA=3650    # CA valid for 10 years

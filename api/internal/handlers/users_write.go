@@ -517,7 +517,7 @@ func handleRenameUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // cnFromDN extracts the CN value from a distinguished name.
-// e.g., "CN=jdoe,CN=Users,DC=dzsec,DC=net" → "jdoe"
+// e.g., "CN=jdoe,CN=Users,DC=example,DC=com" → "jdoe"
 func cnFromDN(dn string) string {
 	parts := strings.Split(dn, ",")
 	for _, part := range parts {

@@ -168,9 +168,9 @@ func TestCnFromDN(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"CN=jdoe,CN=Users,DC=dzsec,DC=net", "jdoe"},
-		{"CN=Domain Admins,CN=Users,DC=dzsec,DC=net", "Domain Admins"},
-		{"OU=Sales,DC=dzsec,DC=net", ""},
+		{"CN=jdoe,CN=Users,DC=example,DC=com", "jdoe"},
+		{"CN=Domain Admins,CN=Users,DC=example,DC=com", "Domain Admins"},
+		{"OU=Sales,DC=example,DC=com", ""},
 		{"", ""},
 	}
 

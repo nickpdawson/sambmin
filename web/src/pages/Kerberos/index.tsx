@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Typography, Table, Card, Space, Button, Row, Col, Input, notification, Alert,
-  Tabs, Popconfirm, Tag, Descriptions, Spin, Badge, Tooltip,
+  Tabs, Popconfirm, Tag, Descriptions, Spin, Badge,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -597,7 +597,7 @@ export default function Kerberos() {
                     {keytabPrincipals.map((p, i) => (
                       <Space.Compact key={i} style={{ width: '100%', marginBottom: 4 }}>
                         <Input
-                          placeholder="e.g. HTTP/web.dzsec.net"
+                          placeholder="e.g. HTTP/web.example.com"
                           value={p}
                           onChange={(e) => {
                             const updated = [...keytabPrincipals];
@@ -660,10 +660,10 @@ export default function Kerberos() {
                     </Text>
                     <Space direction="vertical" size={4} style={{ width: '100%' }}>
                       {[
-                        { principal: 'HTTP/web.dzsec.net', desc: 'Web server authentication' },
-                        { principal: 'cifs/fileserver.dzsec.net', desc: 'SMB/CIFS file sharing' },
-                        { principal: 'ldap/dc.dzsec.net', desc: 'LDAP service' },
-                        { principal: 'host/server.dzsec.net', desc: 'Host authentication' },
+                        { principal: 'HTTP/web.example.com', desc: 'Web server authentication' },
+                        { principal: 'cifs/fileserver.example.com', desc: 'SMB/CIFS file sharing' },
+                        { principal: 'ldap/dc.example.com', desc: 'LDAP service' },
+                        { principal: 'host/server.example.com', desc: 'Host authentication' },
                       ].map((item) => (
                         <Row key={item.principal} justify="space-between" align="middle">
                           <Col>
@@ -827,7 +827,7 @@ export default function Kerberos() {
                         value={newSPN}
                         onChange={(e) => setNewSPN(e.target.value)}
                         style={mono}
-                        placeholder="e.g. HTTP/myhost.dzsec.net"
+                        placeholder="e.g. HTTP/myhost.example.com"
                       />
                     </div>
                     <Space>
@@ -919,7 +919,7 @@ export default function Kerberos() {
                       extra={
                         <Space.Compact>
                           <Input
-                            placeholder="cifs/server.dzsec.net"
+                            placeholder="cifs/server.example.com"
                             value={newService}
                             onChange={(e) => setNewService(e.target.value)}
                             style={{ ...mono, width: 280 }}

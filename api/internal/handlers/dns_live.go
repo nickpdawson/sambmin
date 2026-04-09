@@ -35,7 +35,7 @@ func getDNSClient() *dns.SambaClient {
 }
 
 // usernameFromBindDN extracts the CN value from a bind DN.
-// "CN=services,CN=Users,DC=dzsec,DC=net" -> "services"
+// "CN=services,CN=Users,DC=example,DC=com" -> "services"
 func usernameFromBindDN(bindDN string) string {
 	if bindDN == "" {
 		return ""
@@ -208,7 +208,7 @@ func runSRVCheck(ctx context.Context, client *dns.SambaClient, name, record, zon
 }
 
 // domainFromBaseDN converts a base DN to a domain name.
-// "DC=dzsec,DC=net" -> "dzsec.net"
+// "DC=example,DC=com" -> "example.com"
 func domainFromBaseDN(baseDN string) string {
 	var parts []string
 	for _, component := range strings.Split(baseDN, ",") {

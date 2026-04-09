@@ -54,7 +54,7 @@ func HasRole(sess *Session, role Role) bool {
 // extractCN pulls the CN value from a full DN string, or returns the
 // input unchanged if it's already a bare CN (for test compatibility).
 //
-//	"CN=Domain Admins,CN=Users,DC=dzsec,DC=net" → "Domain Admins"
+//	"CN=Domain Admins,CN=Users,DC=example,DC=com" → "Domain Admins"
 //	"Domain Admins" → "Domain Admins"
 func extractCN(group string) string {
 	upper := strings.ToUpper(group)

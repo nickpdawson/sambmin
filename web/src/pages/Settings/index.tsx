@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Card, Descriptions, Tag, Badge, Table, Space, Button,
-  Switch, Statistic, Row, Col, Divider, Tooltip, Skeleton,
+  Switch, Statistic, Row, Col, Divider, Tooltip, Skeleton, Alert,
+  Modal, InputNumber, notification,
 } from 'antd';
 import {
   SettingOutlined, CloudServerOutlined, SafetyCertificateOutlined,
@@ -64,8 +65,6 @@ interface SettingsData {
   application: {
     version: string;
     scriptsPath: string;
-    databaseHost: string;
-    databaseName: string;
     auditRetentionDays: number;
   };
 }
@@ -85,6 +84,9 @@ export default function Settings() {
   const [tlsOpen, setTlsOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [rbacOpen, setRbacOpen] = useState(false);
+
+  // Restart required tracking
+  const [pendingRestart, setPendingRestart] = useState<string[]>([]);
 
   const loadSettings = useCallback(() => {
     setLoading(true);
@@ -108,9 +110,9 @@ export default function Settings() {
 
   if (!settings) return null;
 
-  const daysUntilExpiry = Math.ceil(
-    (new Date(settings.tls.expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-  );
+  const daysUntilExpiry = settings.tls?.expiry
+    ? Math.ceil((new Date(settings.tls.expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
 
   const dcColumns: ColumnsType<DomainController> = [
     {
@@ -198,10 +200,13 @@ export default function Settings() {
     },
   ];
 
-  // Save handlers — update local state optimistically
-  const handleConnectionSave = (connection: SettingsData['connection']) => {
+  // Save handlers — update local state after successful API save
+  const handleConnectionSave = (connection: SettingsData['connection'], restartRequired?: boolean, restartFields?: string[]) => {
     setSettings((prev) => prev ? { ...prev, connection } : prev);
     setConnectionOpen(false);
+    if (restartRequired && restartFields) {
+      setPendingRestart((prev) => [...new Set([...prev, ...restartFields])]);
+    }
   };
 
   const handleTlsSave = (tls: SettingsData['tls']) => {
@@ -209,14 +214,50 @@ export default function Settings() {
     // Don't close — TLS modal manages its own close for the auto-renew toggle
   };
 
-  const handleAuthSave = (auth: SettingsData['auth']) => {
+  const handleAuthSave = (auth: SettingsData['auth'], restartRequired?: boolean, restartFields?: string[]) => {
     setSettings((prev) => prev ? { ...prev, auth } : prev);
     setAuthOpen(false);
+    if (restartRequired && restartFields) {
+      setPendingRestart((prev) => [...new Set([...prev, ...restartFields])]);
+    }
   };
 
   const handleRbacSave = (roles: SettingsData['rbac']['roles']) => {
     setSettings((prev) => prev ? { ...prev, rbac: { roles } } : prev);
     setRbacOpen(false);
+  };
+
+  const handleEditApplication = () => {
+    let retentionValue = settings?.application?.auditRetentionDays || 90;
+    Modal.confirm({
+      title: 'Edit Application Settings',
+      icon: <AppstoreOutlined />,
+      content: (
+        <div style={{ marginTop: 16 }}>
+          <Text>Audit Retention (days)</Text>
+          <InputNumber
+            min={1}
+            max={3650}
+            defaultValue={retentionValue}
+            onChange={(v) => { if (v) retentionValue = v; }}
+            style={{ width: '100%', marginTop: 8 }}
+          />
+        </div>
+      ),
+      onOk: async () => {
+        try {
+          await api.put('/settings/application', { auditRetentionDays: retentionValue });
+          setSettings((prev) => prev ? {
+            ...prev,
+            application: { ...prev.application, auditRetentionDays: retentionValue },
+          } : prev);
+          notification.success({ message: 'Application settings saved.' });
+        } catch (err: any) {
+          notification.error({ message: err?.message || 'Failed to save application settings.' });
+          throw err; // keep modal open on error
+        }
+      },
+    });
   };
 
   return (
@@ -228,6 +269,18 @@ export default function Settings() {
         </Space>
         <Button icon={<ReloadOutlined />} onClick={loadSettings}>Refresh</Button>
       </div>
+
+      {pendingRestart.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Server restart required"
+          description={`Changes to ${pendingRestart.join(', ')} will take effect after server restart.`}
+          closable
+          onClose={() => setPendingRestart([])}
+          style={{ marginBottom: 8 }}
+        />
+      )}
 
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         {/* Connection */}
@@ -269,41 +322,51 @@ export default function Settings() {
         <Card
           title={<Space><SafetyCertificateOutlined /> TLS Certificate</Space>}
           extra={
-            <Button type="text" icon={<EditOutlined />} size="small" onClick={() => setTlsOpen(true)}>
-              Manage
-            </Button>
+            settings.tls?.certificate && (
+              <Button type="text" icon={<EditOutlined />} size="small" onClick={() => setTlsOpen(true)}>
+                Manage
+              </Button>
+            )
           }
         >
           <Descriptions column={2} size="small">
             <Descriptions.Item label="Provider">
-              <Tag color="green">{settings.tls.provider === 'letsencrypt' ? "Let's Encrypt" : settings.tls.provider}</Tag>
+              <Tag color="green">{settings.tls?.provider === 'letsencrypt' ? "Let's Encrypt" : (settings.tls?.provider || 'nginx-managed')}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Domain">
               <Space>
-                <Text style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}>{settings.tls.domain}</Text>
-                <LinkOutlined style={{ color: 'var(--ant-color-text-tertiary)', fontSize: 12 }} />
+                <Text style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}>{settings.tls?.domain || '—'}</Text>
+                {settings.tls?.domain && <LinkOutlined style={{ color: 'var(--ant-color-text-tertiary)', fontSize: 12 }} />}
               </Space>
             </Descriptions.Item>
-            <Descriptions.Item label="Certificate">
-              <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{settings.tls.certificate}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Key">
-              <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{settings.tls.key}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Expiry">
-              <Space>
-                {daysUntilExpiry > 30 ? (
-                  <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                ) : (
-                  <WarningOutlined style={{ color: '#faad14' }} />
-                )}
-                <Text>{new Date(settings.tls.expiry).toLocaleDateString()}</Text>
-                <Text type="secondary">({daysUntilExpiry} days)</Text>
-              </Space>
-            </Descriptions.Item>
-            <Descriptions.Item label="Auto-Renew">
-              <Switch checked={settings.tls.autoRenew} size="small" disabled />
-            </Descriptions.Item>
+            {settings.tls?.certificate && (
+              <Descriptions.Item label="Certificate">
+                <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{settings.tls.certificate}</Text>
+              </Descriptions.Item>
+            )}
+            {settings.tls?.key && (
+              <Descriptions.Item label="Key">
+                <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{settings.tls.key}</Text>
+              </Descriptions.Item>
+            )}
+            {daysUntilExpiry !== null && (
+              <Descriptions.Item label="Expiry">
+                <Space>
+                  {daysUntilExpiry > 30 ? (
+                    <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                  ) : (
+                    <WarningOutlined style={{ color: '#faad14' }} />
+                  )}
+                  <Text>{new Date(settings.tls.expiry).toLocaleDateString()}</Text>
+                  <Text type="secondary">({daysUntilExpiry} days)</Text>
+                </Space>
+              </Descriptions.Item>
+            )}
+            {settings.tls?.autoRenew !== undefined && (
+              <Descriptions.Item label="Auto-Renew">
+                <Switch checked={settings.tls.autoRenew} size="small" disabled />
+              </Descriptions.Item>
+            )}
           </Descriptions>
         </Card>
 
@@ -380,6 +443,11 @@ export default function Settings() {
         {/* Application */}
         <Card
           title={<Space><AppstoreOutlined /> Application</Space>}
+          extra={
+            <Button type="text" icon={<EditOutlined />} size="small" onClick={handleEditApplication}>
+              Edit
+            </Button>
+          }
         >
           <Descriptions column={2} size="small">
             <Descriptions.Item label="Version">
@@ -387,18 +455,13 @@ export default function Settings() {
             </Descriptions.Item>
             <Descriptions.Item label="Audit Retention">
               <Space>
-                <Text strong>{settings.application.auditRetentionDays}</Text>
+                <Text strong>{settings.application.auditRetentionDays || 90}</Text>
                 <Text type="secondary">days</Text>
               </Space>
             </Descriptions.Item>
             <Descriptions.Item label="Scripts Path">
               <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
                 {settings.application.scriptsPath}
-              </Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Database">
-              <Text style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
-                {settings.application.databaseHost} / {settings.application.databaseName}
               </Text>
             </Descriptions.Item>
           </Descriptions>

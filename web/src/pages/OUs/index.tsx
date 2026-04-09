@@ -431,7 +431,7 @@ export default function OUs() {
     }
   }, [ouByDN, loadOUContents]);
 
-  const handleTreeSelectObject = useCallback((dn: string, type: string) => {
+  const handleTreeSelectObject = useCallback((_dn: string, type: string) => {
     const path = objectNavPath(type);
     if (path) navigate(path);
   }, [navigate]);

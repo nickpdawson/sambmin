@@ -103,6 +103,18 @@ func (s *Store) Create(username, dn string, groups []string, password string) (*
 	return sess, nil
 }
 
+// SetTimeout updates the session timeout duration. New sessions will use the
+// new timeout; existing sessions keep their original expiry.
+func (s *Store) SetTimeout(hours int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t := time.Duration(hours) * time.Hour
+	if t <= 0 {
+		t = 8 * time.Hour
+	}
+	s.timeout = t
+}
+
 // Get retrieves a session by ID. Returns nil if not found or expired.
 func (s *Store) Get(id string) *Session {
 	s.mu.RLock()

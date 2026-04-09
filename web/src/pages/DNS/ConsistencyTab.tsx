@@ -218,13 +218,13 @@ export default function ConsistencyTab() {
             copyable
             style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
           >
-            samba-tool dns query dc1.dzsec.net {data.zone} @ SOA
+            samba-tool dns query dc1.example.com {data.zone} @ SOA
           </Text>
           <Text
             copyable
             style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
           >
-            dig @dc1.dzsec.net {data.zone} SOA +short
+            dig @dc1.example.com {data.zone} SOA +short
           </Text>
         </Space>
       </Card>

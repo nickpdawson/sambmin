@@ -189,7 +189,7 @@ export default function SRVValidatorTab() {
               copyable
               style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
             >
-              samba-tool dns query dc1.dzsec.net dzsec.net {rec} SRV
+              samba-tool dns query dc1.example.com example.com {rec} SRV
             </Text>
           ))}
           {data.records.length > 3 && (

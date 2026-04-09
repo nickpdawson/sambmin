@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Card, Col, Row, Typography, Space, Tag, Descriptions, Button,
-  Form, Input, notification, Skeleton, Divider, Alert,
+  Form, Input, notification, Skeleton, Alert,
 } from 'antd';
 import {
   UserOutlined, KeyOutlined, MailOutlined,

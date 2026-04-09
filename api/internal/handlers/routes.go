@@ -179,8 +179,12 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client, sto
 	protected.HandleFunc("GET /api/password-policy/user/{username}", handleGetEffectivePolicy)
 	protected.HandleFunc("POST /api/password-policy/test", handleTestPassword)
 
-	// Settings (mock data for dev)
-	protected.HandleFunc("GET /api/settings", handleGetSettingsMock)
+	// Settings (real persistence via settings.json overlay)
+	protected.HandleFunc("GET /api/settings", handleGetSettings)
+	protected.Handle("PUT /api/settings/connection", requireRole(auth.RoleAdmin, handleUpdateConnection))
+	protected.Handle("PUT /api/settings/auth", requireRole(auth.RoleAdmin, handleUpdateAuth))
+	protected.Handle("PUT /api/settings/rbac", requireRole(auth.RoleAdmin, handleUpdateRBAC))
+	protected.Handle("PUT /api/settings/application", requireRole(auth.RoleAdmin, handleUpdateApplication))
 
 	// Replication (read = authenticated, sync = admin)
 	if dir != nil {

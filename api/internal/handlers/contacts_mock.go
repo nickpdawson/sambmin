@@ -7,7 +7,7 @@ import (
 func handleListContactsMock(w http.ResponseWriter, r *http.Request) {
 	contacts := []map[string]any{
 		{
-			"dn": "CN=External Vendor,OU=Contacts,DC=dzsec,DC=net", "name": "External Vendor",
+			"dn": "CN=External Vendor,OU=Contacts,DC=example,DC=com", "name": "External Vendor",
 			"displayName": "External Vendor", "givenName": "External", "sn": "Vendor",
 			"mail": "vendor@example.com", "description": "Third-party vendor contact",
 			"department": "Procurement", "title": "Account Manager", "company": "Acme Corp",
@@ -17,7 +17,7 @@ func handleListContactsMock(w http.ResponseWriter, r *http.Request) {
 			"memberOf": []string{},
 		},
 		{
-			"dn": "CN=Partner Rep,OU=Contacts,DC=dzsec,DC=net", "name": "Partner Rep",
+			"dn": "CN=Partner Rep,OU=Contacts,DC=example,DC=com", "name": "Partner Rep",
 			"displayName": "Partner Rep", "givenName": "Partner", "sn": "Rep",
 			"mail": "partner@partner.org", "description": "Strategic partner liaison",
 			"department": "", "title": "Director", "company": "Partner Org",
@@ -25,7 +25,7 @@ func handleListContactsMock(w http.ResponseWriter, r *http.Request) {
 			"streetAddress": "123 Main St", "city": "Bozeman", "state": "MT",
 			"postalCode": "59715", "country": "US",
 			"whenCreated": "2024-03-15T09:00:00Z", "whenChanged": "2025-01-10T14:00:00Z",
-			"memberOf": []string{"CN=VPN-External,OU=Groups,DC=dzsec,DC=net"},
+			"memberOf": []string{"CN=VPN-External,OU=Groups,DC=example,DC=com"},
 		},
 	}
 
@@ -37,7 +37,7 @@ func handleListContactsMock(w http.ResponseWriter, r *http.Request) {
 
 func handleGetContactMock(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]any{
-		"dn": "CN=External Vendor,OU=Contacts,DC=dzsec,DC=net", "name": "External Vendor",
+		"dn": "CN=External Vendor,OU=Contacts,DC=example,DC=com", "name": "External Vendor",
 		"displayName": "External Vendor", "givenName": "External", "sn": "Vendor",
 		"mail": "vendor@example.com", "description": "Third-party vendor contact",
 		"department": "Procurement", "title": "Account Manager", "company": "Acme Corp",

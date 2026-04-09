@@ -7,6 +7,7 @@ import {
   PlusOutlined, DeleteOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { api } from '../../api/client';
 
 const { Text } = Typography;
 
@@ -107,11 +108,15 @@ export default function RbacModal({ open, roles, onClose, onSave }: RbacModalPro
 
   const handleSave = async () => {
     setLoading(true);
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 600));
-    onSave(editableRoles);
-    notification.success({ message: 'RBAC configuration saved.' });
-    setLoading(false);
+    try {
+      await api.put('/settings/rbac', { roles: editableRoles });
+      onSave(editableRoles);
+      notification.success({ message: 'RBAC configuration saved. Changes take effect on next login.' });
+    } catch (err: any) {
+      notification.error({ message: err?.message || 'Failed to save RBAC configuration.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const columns: ColumnsType<RoleEntry> = [

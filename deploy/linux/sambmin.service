@@ -1,8 +1,7 @@
 [Unit]
 Description=Sambmin - Samba AD Management
 Documentation=https://github.com/yourorg/sambmin
-After=network.target postgresql.service
-Wants=postgresql.service
+After=network.target
 
 [Service]
 Type=simple

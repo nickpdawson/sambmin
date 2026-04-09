@@ -4,6 +4,7 @@ import {
   notification, Card,
 } from 'antd';
 import { KeyOutlined } from '@ant-design/icons';
+import { api } from '../../api/client';
 
 const { Text } = Typography;
 
@@ -24,7 +25,7 @@ interface AuthModalProps {
   open: boolean;
   data: AuthData;
   onClose: () => void;
-  onSave: (data: AuthData) => void;
+  onSave: (data: AuthData, restartRequired?: boolean, restartFields?: string[]) => void;
 }
 
 export default function AuthModal({ open, data, onClose, onSave }: AuthModalProps) {
@@ -51,8 +52,17 @@ export default function AuthModal({ open, data, onClose, onSave }: AuthModalProp
     try {
       const values = await form.validateFields();
       setLoading(true);
-      // Simulate API call
-      await new Promise((r) => setTimeout(r, 600));
+
+      const result = await api.put<{ status: string; restartRequired: boolean; restartFields: string[] }>(
+        '/settings/auth',
+        {
+          kerberos: {
+            enabled: values.kerberosEnabled,
+            keytab: values.keytab,
+          },
+          sessionTimeout: values.sessionTimeout,
+        },
+      );
 
       const updated: AuthData = {
         kerberos: {
@@ -67,10 +77,18 @@ export default function AuthModal({ open, data, onClose, onSave }: AuthModalProp
         sessionTimeout: values.sessionTimeout,
       };
 
-      onSave(updated);
+      onSave(updated, result.restartRequired, result.restartFields);
       notification.success({ message: 'Authentication settings saved.' });
+      if (result.restartRequired) {
+        notification.warning({
+          message: 'Restart Required',
+          description: `Changes to ${result.restartFields.join(', ')} will take effect after server restart.`,
+          duration: 8,
+        });
+      }
       setLoading(false);
-    } catch {
+    } catch (err: any) {
+      notification.error({ message: err?.message || 'Failed to save auth settings.' });
       setLoading(false);
     }
   };
@@ -128,7 +146,7 @@ export default function AuthModal({ open, data, onClose, onSave }: AuthModalProp
           <Form.Item
             name="spn"
             label="Service Principal Name (SPN)"
-            rules={kerberosEnabled ? [{ required: true, message: 'Required when Kerberos is enabled' }] : []}
+            tooltip="Optional — derived from the keytab. Managed via SPN Management tab."
           >
             <Input
               placeholder="HTTP/sambmin.example.com@EXAMPLE.COM"

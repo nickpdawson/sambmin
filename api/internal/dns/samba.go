@@ -23,7 +23,7 @@ const cmdTimeout = 15 * time.Second
 
 // SambaClient queries DNS via samba-tool commands.
 type SambaClient struct {
-	server   string // DC hostname to query (e.g., "localhost" or "bridger.dzsec.net")
+	server   string // DC hostname to query (e.g., "localhost" or "bridger.example.com")
 	username string // service account username
 	password string // service account password
 }
@@ -131,14 +131,14 @@ func (s *SambaClient) QueryAllRecords(ctx context.Context, zone string) ([]model
 // Expected format:
 //
 //	2 zone(s) found
-//	pszZoneName                 : dzsec.net
+//	pszZoneName                 : example.com
 //	Flags                       : DNS_RPC_ZONE_DSINTEGRATED DNS_RPC_ZONE_UPDATE_SECURE
 //	ZoneType                    : DNS_ZONE_TYPE_PRIMARY
 //	Version                     : 50
 //	dwDpFlags                   : DNS_DP_AUTOCREATED DNS_DP_DOMAIN_DEFAULT DNS_DP_ENLISTED
-//	pszDpFqdn                   : DomainDnsZones.dzsec.net
+//	pszDpFqdn                   : DomainDnsZones.example.com
 //
-//	pszZoneName                 : _msdcs.dzsec.net
+//	pszZoneName                 : _msdcs.example.com
 //	...
 func parseZoneList(output string) []models.DNSZone {
 	var zones []models.DNSZone
@@ -196,13 +196,13 @@ func parseZoneList(output string) []models.DNSZone {
 //
 //	A: 10.15.15.57 (flags=600000f0, serial=110, ttl=900)
 //	AAAA: fe80::1 (flags=600000f0, serial=110, ttl=3600)
-//	CNAME: web.dzsec.net. (flags=600000f0, serial=110, ttl=600)
-//	MX: mail.dzsec.net. (10) (flags=600000f0, serial=110, ttl=600)
-//	SRV: dc1.dzsec.net. 389 0 100 (flags=600000f0, serial=110, ttl=600)
-//	NS: dc1.dzsec.net. (flags=600000f0, serial=110, ttl=600)
+//	CNAME: web.example.com. (flags=600000f0, serial=110, ttl=600)
+//	MX: mail.example.com. (10) (flags=600000f0, serial=110, ttl=600)
+//	SRV: dc1.example.com. 389 0 100 (flags=600000f0, serial=110, ttl=600)
+//	NS: dc1.example.com. (flags=600000f0, serial=110, ttl=600)
 //	TXT: "v=spf1 mx -all" (flags=600000f0, serial=110, ttl=600)
-//	SOA: serial=110, refresh=900, retry=600, expire=86400, minttl=3600, ns=dc1.dzsec.net., email=hostmaster.dzsec.net. (flags=600000f0, serial=110, ttl=3600)
-//	PTR: dc1.dzsec.net. (flags=600000f0, serial=110, ttl=900)
+//	SOA: serial=110, refresh=900, retry=600, expire=86400, minttl=3600, ns=dc1.example.com., email=hostmaster.example.com. (flags=600000f0, serial=110, ttl=3600)
+//	PTR: dc1.example.com. (flags=600000f0, serial=110, ttl=900)
 var recordLineRe = regexp.MustCompile(`^\s+(A|AAAA|CNAME|MX|SRV|NS|TXT|SOA|PTR):\s+(.+)$`)
 
 // nameLineRe matches the "Name=xxx, Records=N, Children=M" header lines.
@@ -260,11 +260,11 @@ func ParseRecordOutput(output string, defaultName string) []models.DNSRecord {
 			rec.Value = extractValueBeforeParens(recData)
 
 		case "MX":
-			// Format: "mail.dzsec.net. (10) (flags=...)"
+			// Format: "mail.example.com. (10) (flags=...)"
 			rec.Value, rec.Priority = parseMXData(recData)
 
 		case "SRV":
-			// Format: "dc1.dzsec.net. 389 0 100 (flags=...)"
+			// Format: "dc1.example.com. 389 0 100 (flags=...)"
 			rec.Value, rec.Port, rec.Priority, rec.Weight = parseSRVData(recData)
 
 		case "TXT":
@@ -272,7 +272,7 @@ func ParseRecordOutput(output string, defaultName string) []models.DNSRecord {
 			rec.Value = parseTXTData(recData)
 
 		case "SOA":
-			// Format: "serial=110, refresh=900, retry=600, expire=86400, minttl=3600, ns=dc1.dzsec.net., email=hostmaster.dzsec.net. (flags=...)"
+			// Format: "serial=110, refresh=900, retry=600, expire=86400, minttl=3600, ns=dc1.example.com., email=hostmaster.example.com. (flags=...)"
 			rec.Value = parseSOAData(recData)
 			rec.Dynamic = false
 		}
@@ -293,7 +293,7 @@ func extractValueBeforeParens(s string) string {
 }
 
 // parseMXData extracts the target and priority from MX record data.
-// Input: "mail.dzsec.net. (10) (flags=600000f0, serial=110, ttl=600)"
+// Input: "mail.example.com. (10) (flags=600000f0, serial=110, ttl=600)"
 func parseMXData(data string) (target string, priority int) {
 	// Find the mail server name (before any parenthesized data)
 	parts := strings.SplitN(data, "(", 2)
@@ -309,7 +309,7 @@ func parseMXData(data string) (target string, priority int) {
 }
 
 // parseSRVData extracts target, port, priority, and weight from SRV record data.
-// Input: "dc1.dzsec.net. 389 0 100 (flags=600000f0, serial=110, ttl=600)"
+// Input: "dc1.example.com. 389 0 100 (flags=600000f0, serial=110, ttl=600)"
 func parseSRVData(data string) (target string, port, priority, weight int) {
 	// Get everything before the flags paren
 	clean := extractValueBeforeParens(data)
@@ -341,7 +341,7 @@ func parseTXTData(data string) string {
 }
 
 // parseSOAData formats SOA record data into a readable value.
-// Input: "serial=110, refresh=900, retry=600, expire=86400, minttl=3600, ns=dc1.dzsec.net., email=hostmaster.dzsec.net. (flags=...)"
+// Input: "serial=110, refresh=900, retry=600, expire=86400, minttl=3600, ns=dc1.example.com., email=hostmaster.example.com. (flags=...)"
 func parseSOAData(data string) string {
 	clean := extractValueBeforeParens(data)
 
@@ -471,8 +471,8 @@ func ParseServerInfo(output string, server string) *models.DNSServerInfo {
 // parseZoneInfo parses `samba-tool dns zoneinfo` output.
 // Example output:
 //
-//	Zone information for 'dzsec.net'
-//	pszZoneName                 : dzsec.net
+//	Zone information for 'example.com'
+//	pszZoneName                 : example.com
 //	Flags                       : DNS_RPC_ZONE_DSINTEGRATED DNS_RPC_ZONE_UPDATE_SECURE
 //	ZoneType                    : DNS_ZONE_TYPE_PRIMARY
 //	fAging                      : 0

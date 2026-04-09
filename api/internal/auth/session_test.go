@@ -178,7 +178,7 @@ func TestDnToDomain(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"DC=dzsec,DC=net", "dzsec.net"},
+		{"DC=example,DC=com", "example.com"},
 		{"DC=example,DC=com", "example.com"},
 		{"DC=sub,DC=example,DC=com", "sub.example.com"},
 		{"", ""},

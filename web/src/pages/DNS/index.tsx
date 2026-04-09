@@ -615,7 +615,7 @@ export default function DNS() {
                         copyable
                         style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
                       >
-                        samba-tool dns query dc1.dzsec.net {selectedZone} @ ALL
+                        samba-tool dns query dc1.example.com {selectedZone} @ ALL
                       </Text>
                     </Space>
                   </Card>
@@ -703,17 +703,17 @@ export default function DNS() {
                   <Descriptions column={1} size="small" title="Equivalent CLI Commands">
                     <Descriptions.Item label="Check SRV records">
                       <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
-                        samba-tool dns query dc1.dzsec.net dzsec.net _ldap._tcp SRV
+                        samba-tool dns query dc1.example.com example.com _ldap._tcp SRV
                       </Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="Zone info">
                       <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
-                        samba-tool dns zonelist dc1.dzsec.net
+                        samba-tool dns zonelist dc1.example.com
                       </Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="SOA check">
                       <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
-                        dig @dc1.dzsec.net dzsec.net SOA +short
+                        dig @dc1.example.com example.com SOA +short
                       </Text>
                     </Descriptions.Item>
                   </Descriptions>
@@ -794,7 +794,7 @@ export default function DNS() {
                 copyable
                 style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
               >
-                samba-tool dns delete dc1.dzsec.net {selectedZone} {deleteTarget.name} {deleteTarget.type} {deleteTarget.value}
+                samba-tool dns delete dc1.example.com {selectedZone} {deleteTarget.name} {deleteTarget.type} {deleteTarget.value}
               </Text>
             </Card>
           </Space>

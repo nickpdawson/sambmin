@@ -131,7 +131,7 @@ export default function QueryToolTab() {
                 label="Zone"
                 rules={[{ required: true, message: 'Zone is required' }]}
               >
-                <Input placeholder="dzsec.net" style={mono} />
+                <Input placeholder="example.com" style={mono} />
               </Form.Item>
             </Col>
             <Col span={6}>

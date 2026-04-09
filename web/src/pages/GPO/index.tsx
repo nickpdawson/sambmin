@@ -427,7 +427,7 @@ export default function GPOPage() {
             <Input
               value={linkOU}
               onChange={(e) => setLinkOU(e.target.value)}
-              placeholder="e.g. OU=Staff,DC=dzsec,DC=net"
+              placeholder="e.g. OU=Staff,DC=example,DC=com"
               style={mono}
             />
           </div>

@@ -228,8 +228,8 @@ func handleGetGPOLinks(w http.ResponseWriter, r *http.Request) {
 //
 //	GPO          : {31B2F340-016D-11D2-945F-00C04FB984F9}
 //	display name : Default Domain Policy
-//	path         : \\dzsec.net\sysvol\dzsec.net\Policies\{31B2F340-016D-11D2-945F-00C04FB984F9}
-//	dn           : CN={31B2F340-016D-11D2-945F-00C04FB984F9},CN=Policies,CN=System,DC=dzsec,DC=net
+//	path         : \\example.com\sysvol\example.com\Policies\{31B2F340-016D-11D2-945F-00C04FB984F9}
+//	dn           : CN={31B2F340-016D-11D2-945F-00C04FB984F9},CN=Policies,CN=System,DC=example,DC=com
 //	version      : 65539
 //	flags        : NONE
 func parseGPOListAll(output string) []models.GPO {
@@ -307,7 +307,7 @@ func parseGPOFlags(s string) int {
 // parseGPOGetLink parses `samba-tool gpo getlink` output.
 // Output format:
 //
-//	GPO(s) linked to DN OU=Staff,DC=dzsec,DC=net
+//	GPO(s) linked to DN OU=Staff,DC=example,DC=com
 //	    GPO     : {31B2F340-016D-11D2-945F-00C04FB984F9}
 //	    Name    : Default Domain Policy
 func parseGPOGetLink(output, ouDN string) []models.GPOLink {

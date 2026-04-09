@@ -73,8 +73,8 @@ export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUse
       form.setFieldsValue({
         samAccountName: username,
         displayName: display,
-        mail: `${username}@dzsec.net`,
-        userPrincipalName: `${username}@dzsec.net`,
+        mail: `${username}@example.com`,
+        userPrincipalName: `${username}@example.com`,
       });
     }
   };
@@ -172,12 +172,12 @@ export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUse
             rules={[{ required: true, message: 'Required' }]}
             style={{ flex: 1 }}
           >
-            <Input placeholder="jsmith" addonAfter="@dzsec.net" />
+            <Input placeholder="jsmith" addonAfter="@example.com" />
           </Form.Item>
         </Space>
 
         <Form.Item name="mail" label="Email">
-          <Input placeholder="jsmith@dzsec.net" />
+          <Input placeholder="jsmith@example.com" />
         </Form.Item>
 
         {/* Credentials */}

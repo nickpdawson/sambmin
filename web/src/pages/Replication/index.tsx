@@ -384,7 +384,7 @@ export default function Replication() {
           <Card size="small" styles={{ body: { padding: '8px 12px' } }}>
             <Text type="secondary" style={{ fontSize: 12 }}>CLI equivalent: </Text>
             <Text copyable style={{ ...mono, fontSize: 12 }}>
-              samba-tool drs replicate {syncDest || '<dest>'} {syncSource || '<source>'} DC=dzsec,DC=net
+              samba-tool drs replicate {syncDest || '<dest>'} {syncSource || '<source>'} DC=example,DC=com
             </Text>
           </Card>
         </Space>

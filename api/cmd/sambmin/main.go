@@ -18,16 +18,38 @@ import (
 	"github.com/nickdawson/sambmin/internal/middleware"
 )
 
+// Set via -ldflags at build time.
+var (
+	Version   = "dev"
+	CommitSHA = "unknown"
+	BuildDate = "unknown"
+)
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Printf("sambmin %s (commit %s, built %s)\n", Version, CommitSHA, BuildDate)
+		os.Exit(0)
+	}
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 	slog.SetDefault(logger)
 
-	cfg, err := config.Load()
+	cfg, configPath, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
+	}
+
+	// Load settings overlay (GUI-managed overrides)
+	settingsPath := config.SettingsPath(configPath)
+	settingsStore, err := config.NewSettingsStore(settingsPath)
+	if err != nil {
+		slog.Warn("failed to load settings overlay, using base config only", "error", err)
+	} else {
+		cfg = settingsStore.ApplyTo(cfg)
+		slog.Info("settings overlay applied", "path", settingsPath)
 	}
 
 	// Initialize directory client if DCs are configured
@@ -56,6 +78,10 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	if settingsStore != nil {
+		handlers.InitSettings(settingsStore, authStore)
+	}
+	handlers.SetVersion(Version)
 	handlers.Register(mux, cfg, dirClient, authStore)
 
 	handler := middleware.Chain(mux,

@@ -363,7 +363,7 @@ export default function Computers() {
             <Input />
           </Form.Item>
           <Form.Item name="ou" label="OU (optional)">
-            <Input placeholder="OU=Workstations,DC=dzsec,DC=net" />
+            <Input placeholder="OU=Workstations,DC=example,DC=com" />
           </Form.Item>
         </Form>
       </Modal>
@@ -378,7 +378,7 @@ export default function Computers() {
       >
         <Form form={moveForm} layout="vertical">
           <Form.Item name="targetOu" label="Target OU" rules={[{ required: true, message: 'Target OU is required' }]}>
-            <Input placeholder="OU=Servers,DC=dzsec,DC=net" />
+            <Input placeholder="OU=Servers,DC=example,DC=com" />
           </Form.Item>
         </Form>
       </Modal>

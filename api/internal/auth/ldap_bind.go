@@ -92,7 +92,7 @@ func (a *LDAPAuthenticator) resolveBindDN(username string) string {
 	return username + "@" + domain
 }
 
-// dnToDomain converts "DC=dzsec,DC=net" to "dzsec.net"
+// dnToDomain converts "DC=example,DC=com" to "example.com"
 func dnToDomain(baseDN string) string {
 	parts := strings.Split(baseDN, ",")
 	var domains []string

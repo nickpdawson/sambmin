@@ -8,6 +8,7 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { api } from '../../api/client';
 
 const { Text } = Typography;
 
@@ -31,7 +32,7 @@ interface ConnectionModalProps {
   open: boolean;
   data: ConnectionData;
   onClose: () => void;
-  onSave: (data: ConnectionData) => void;
+  onSave: (data: ConnectionData, restartRequired?: boolean, restartFields?: string[]) => void;
 }
 
 export default function ConnectionModal({ open, data, onClose, onSave }: ConnectionModalProps) {
@@ -113,17 +114,31 @@ export default function ConnectionModal({ open, data, onClose, onSave }: Connect
         return;
       }
       setSaving(true);
-      // Simulate API call
-      await new Promise((r) => setTimeout(r, 600));
+      const result = await api.put<{ status: string; restartRequired: boolean; restartFields: string[] }>(
+        '/settings/connection',
+        {
+          domainControllers: dcs,
+          baseDN: values.baseDN,
+          protocol: values.protocol,
+        },
+      );
       onSave({
         baseDN: values.baseDN,
         realm: values.realm,
         protocol: values.protocol,
         domainControllers: dcs,
-      });
+      }, result.restartRequired, result.restartFields);
       notification.success({ message: 'Connection settings saved.' });
+      if (result.restartRequired) {
+        notification.warning({
+          message: 'Restart Required',
+          description: `Changes to ${result.restartFields.join(', ')} will take effect after server restart.`,
+          duration: 8,
+        });
+      }
       setSaving(false);
-    } catch {
+    } catch (err: any) {
+      notification.error({ message: err?.message || 'Failed to save connection settings.' });
       setSaving(false);
     }
   };

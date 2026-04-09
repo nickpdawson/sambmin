@@ -68,3 +68,4 @@ sambmin-security.sh
 # Root-level compiled binaries (build artifacts)
 /sambmin
 /sambmin-linux
+api/sambmin-freebsd

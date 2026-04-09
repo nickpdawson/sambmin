@@ -88,7 +88,7 @@ const QUERY_TEMPLATES = [
   { name: 'All disabled users', filter: '(&(objectClass=user)(!(objectClass=computer))(userAccountControl:1.2.840.113556.1.4.803:=2))' },
   { name: 'All locked accounts', filter: '(&(objectClass=user)(!(objectClass=computer))(lockoutTime>=1))' },
   { name: 'Users without email', filter: '(&(objectClass=user)(!(objectClass=computer))(!(mail=*)))' },
-  { name: 'Domain Admins members', filter: '(&(objectClass=user)(memberOf=CN=Domain Admins,CN=Users,DC=dzsec,DC=net))' },
+  { name: 'Domain Admins members', filter: '(&(objectClass=user)(memberOf=CN=Domain Admins,CN=Users,DC=example,DC=com))' },
   { name: 'Computers with old OS', filter: '(&(objectClass=computer)(operatingSystem=Windows Server 2012*))' },
   { name: 'Empty groups', filter: '(&(objectClass=group)(!(member=*)))' },
   { name: 'Recently created objects', filter: '(&(objectClass=*)(whenCreated>=20260101000000.0Z))' },

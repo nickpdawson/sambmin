@@ -174,7 +174,7 @@ func handleAddDelegationService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Service string `json:"service"` // e.g., "cifs/fileserver.dzsec.net"
+		Service string `json:"service"` // e.g., "cifs/fileserver.example.com"
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
@@ -256,9 +256,9 @@ func handleRemoveDelegationService(w http.ResponseWriter, r *http.Request) {
 // parseSPNList parses `samba-tool spn list <account>` output.
 // Output format (one SPN per line, after a header):
 //
-//	User CN=myhost,CN=Computers,DC=dzsec,DC=net has the following servicePrincipalName:
-//	   HTTP/myhost.dzsec.net
-//	   HOST/myhost.dzsec.net
+//	User CN=myhost,CN=Computers,DC=example,DC=com has the following servicePrincipalName:
+//	   HTTP/myhost.example.com
+//	   HOST/myhost.example.com
 //	   HOST/myhost
 func parseSPNList(output, account string) []models.SPN {
 	var spns []models.SPN
@@ -285,8 +285,8 @@ func parseSPNList(output, account string) []models.SPN {
 //	Incoming Delegations:
 //	  (none)
 //	Outgoing Delegations:
-//	  cifs/fileserver.dzsec.net
-//	  HTTP/web.dzsec.net
+//	  cifs/fileserver.example.com
+//	  HTTP/web.example.com
 //
 // Or for unconstrained:
 //
