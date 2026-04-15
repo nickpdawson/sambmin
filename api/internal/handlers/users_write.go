@@ -214,6 +214,16 @@ type updateUserRequest struct {
 	State       string `json:"state"`
 	PostalCode  string `json:"postalCode"`
 	Country     string `json:"country"`
+	// Windows profile
+	ProfilePath   string `json:"profilePath"`
+	ScriptPath    string `json:"scriptPath"`
+	HomeDrive     string `json:"homeDrive"`
+	HomeDirectory string `json:"homeDirectory"`
+	// Unix/POSIX
+	LoginShell    string `json:"loginShell"`
+	UnixHomeDir   string `json:"unixHomeDirectory"`
+	UidNumber     string `json:"uidNumber"`
+	GidNumber     string `json:"gidNumber"`
 }
 
 func handleUpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -288,6 +298,30 @@ func handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Country != "" {
 		attrs["co"] = req.Country
+	}
+	if req.ProfilePath != "" {
+		attrs["profilePath"] = req.ProfilePath
+	}
+	if req.ScriptPath != "" {
+		attrs["scriptPath"] = req.ScriptPath
+	}
+	if req.HomeDrive != "" {
+		attrs["homeDrive"] = req.HomeDrive
+	}
+	if req.HomeDirectory != "" {
+		attrs["homeDirectory"] = req.HomeDirectory
+	}
+	if req.LoginShell != "" {
+		attrs["loginShell"] = req.LoginShell
+	}
+	if req.UnixHomeDir != "" {
+		attrs["unixHomeDirectory"] = req.UnixHomeDir
+	}
+	if req.UidNumber != "" {
+		attrs["uidNumber"] = req.UidNumber
+	}
+	if req.GidNumber != "" {
+		attrs["gidNumber"] = req.GidNumber
 	}
 
 	if len(attrs) == 0 {

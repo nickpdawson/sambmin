@@ -39,6 +39,14 @@ interface User {
   country: string;
   phone: string;
   mobile: string;
+  profilePath: string;
+  scriptPath: string;
+  homeDrive: string;
+  homeDirectory: string;
+  loginShell: string;
+  unixHomeDirectory: string;
+  uidNumber: string;
+  gidNumber: string;
   enabled: boolean;
   lockedOut: boolean;
   passwordExpired: boolean;

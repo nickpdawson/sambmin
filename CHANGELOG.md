@@ -2,6 +2,12 @@
 
 All notable changes to Sambmin will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **User Profile tab** — New tab in user detail drawer with Windows profile fields (profile path, logon script, home drive, home directory) and Unix/POSIX attributes (login shell, home directory, UID, GID number)
+- All profile fields are editable inline with LDAP modify writes
+
 ## [0.1.0-beta.1] - 2026-04-09
 
 First public beta release.

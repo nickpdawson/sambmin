@@ -24,6 +24,16 @@ type User struct {
 	Country         string    `json:"country"`
 	Phone           string    `json:"phone"`
 	Mobile          string    `json:"mobile"`
+	// Windows profile
+	ProfilePath     string    `json:"profilePath"`
+	ScriptPath      string    `json:"scriptPath"`
+	HomeDrive       string    `json:"homeDrive"`
+	HomeDirectory   string    `json:"homeDirectory"`
+	// Unix/POSIX (RFC 2307)
+	LoginShell      string    `json:"loginShell"`
+	UnixHomeDir     string    `json:"unixHomeDirectory"`
+	UidNumber       string    `json:"uidNumber"`
+	GidNumber       string    `json:"gidNumber"`
 	Enabled         bool      `json:"enabled"`
 	LockedOut       bool      `json:"lockedOut"`
 	PasswordExpired bool      `json:"passwordExpired"`

@@ -59,6 +59,18 @@ const (
 
 	// OU
 	AttrOU                = "ou"
+
+	// Windows profile
+	AttrProfilePath       = "profilePath"
+	AttrScriptPath        = "scriptPath"
+	AttrHomeDrive         = "homeDrive"
+	AttrHomeDirectory     = "homeDirectory"
+
+	// Unix/POSIX (RFC 2307)
+	AttrLoginShell        = "loginShell"
+	AttrUnixHomeDir       = "unixHomeDirectory"
+	AttrUidNumber         = "uidNumber"
+	AttrGidNumber         = "gidNumber"
 )
 
 // userAccountControl flag bits
@@ -90,6 +102,8 @@ var UserAttrs = []string{
 	AttrAccountExpires, AttrBadPwdCount,
 	AttrWhenCreated, AttrWhenChanged, AttrLastLogon,
 	AttrMemberOf,
+	AttrProfilePath, AttrScriptPath, AttrHomeDrive, AttrHomeDirectory,
+	AttrLoginShell, AttrUnixHomeDir, AttrUidNumber, AttrGidNumber,
 }
 
 var GroupAttrs = []string{

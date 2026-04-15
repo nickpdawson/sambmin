@@ -34,6 +34,16 @@ interface User {
   country: string;
   phone: string;
   mobile: string;
+  // Windows profile
+  profilePath: string;
+  scriptPath: string;
+  homeDrive: string;
+  homeDirectory: string;
+  // Unix/POSIX
+  loginShell: string;
+  unixHomeDirectory: string;
+  uidNumber: string;
+  gidNumber: string;
   enabled: boolean;
   lockedOut: boolean;
   passwordExpired: boolean;
@@ -375,6 +385,29 @@ export default function UserDrawer({ user, open, onClose, onRefresh }: UserDrawe
               )}
             </Space>
           </div>
+        </>
+      ),
+    },
+    {
+      key: 'profile',
+      label: 'Profile',
+      children: (
+        <>
+          <Title level={5} style={{ margin: '0 0 8px' }}>Windows Profile</Title>
+          <Descriptions column={1} size="small" bordered>
+            <Descriptions.Item label="Profile Path"><EditableFieldContent value={user.profilePath} fieldName="profilePath" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Logon Script"><EditableFieldContent value={user.scriptPath} fieldName="scriptPath" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Home Drive"><EditableFieldContent value={user.homeDrive} fieldName="homeDrive" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Home Directory"><EditableFieldContent value={user.homeDirectory} fieldName="homeDirectory" onSave={handleFieldSave} /></Descriptions.Item>
+          </Descriptions>
+
+          <Title level={5} style={{ margin: '16px 0 8px' }}>Unix/POSIX Attributes</Title>
+          <Descriptions column={1} size="small" bordered>
+            <Descriptions.Item label="Login Shell"><EditableFieldContent value={user.loginShell} fieldName="loginShell" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="Unix Home Directory"><EditableFieldContent value={user.unixHomeDirectory} fieldName="unixHomeDirectory" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="UID Number"><EditableFieldContent value={user.uidNumber} fieldName="uidNumber" onSave={handleFieldSave} /></Descriptions.Item>
+            <Descriptions.Item label="GID Number"><EditableFieldContent value={user.gidNumber} fieldName="gidNumber" onSave={handleFieldSave} /></Descriptions.Item>
+          </Descriptions>
         </>
       ),
     },
