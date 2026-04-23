@@ -8,6 +8,10 @@ All notable changes to Sambmin will be documented in this file.
 - **User Profile tab** — New tab in user detail drawer with Windows profile fields (profile path, logon script, home drive, home directory) and Unix/POSIX attributes (login shell, home directory, UID, GID number)
 - All profile fields are editable inline with LDAP modify writes
 
+### Fixed
+- **DNS record create/update/delete now works** — `samba-tool dns` uses DCE/RPC, not LDAP; was incorrectly getting `-H ldap://localhost` appended which caused all DNS write operations to fail
+- **DNS commands use primary DC from config** — replaced all hardcoded `localhost` / `dc1.example.com` with the configured primary DC hostname in both backend samba-tool calls and frontend CLI preview strings
+
 ## [0.1.0-beta.1] - 2026-04-09
 
 First public beta release.
