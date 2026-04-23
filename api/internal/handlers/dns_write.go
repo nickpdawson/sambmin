@@ -8,6 +8,22 @@ import (
 	"github.com/nickdawson/sambmin/internal/validate"
 )
 
+// primaryDCHostname returns the hostname of the primary DC from config,
+// falling back to "localhost" if none is marked primary.
+func primaryDCHostname() string {
+	if handlerConfig != nil {
+		for _, dc := range handlerConfig.DCs {
+			if dc.Primary {
+				return dc.Hostname
+			}
+		}
+		if len(handlerConfig.DCs) > 0 {
+			return handlerConfig.DCs[0].Hostname
+		}
+	}
+	return "localhost"
+}
+
 // --- DNS Zone CRUD ---
 
 type createDNSZoneRequest struct {
@@ -34,7 +50,7 @@ func handleCreateDNSZone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server := "localhost"
+	server := primaryDCHostname()
 	if _, err := runSambaTool(r.Context(), sess, "dns", "zonecreate", server, req.Name); err != nil {
 		slog.Error("DNS zone create failed", "zone", req.Name, "actor", sess.Username, "error", err)
 		respondError(w, http.StatusInternalServerError, "DNS zone creation failed")
@@ -61,7 +77,7 @@ func handleDeleteDNSZone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server := "localhost"
+	server := primaryDCHostname()
 	if _, err := runSambaTool(r.Context(), sess, "dns", "zonedelete", server, zone); err != nil {
 		slog.Error("DNS zone delete failed", "zone", zone, "actor", sess.Username, "error", err)
 		respondError(w, http.StatusInternalServerError, "DNS zone deletion failed")
@@ -114,7 +130,7 @@ func handleCreateDNSRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server := "localhost"
+	server := primaryDCHostname()
 	args := []string{"dns", "add", server, zone, req.Name, req.Type, req.Value}
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
@@ -160,7 +176,7 @@ func handleUpdateDNSRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server := "localhost"
+	server := primaryDCHostname()
 	args := []string{"dns", "update", server, zone, name, req.Type, req.OldValue, req.NewValue}
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
@@ -198,7 +214,7 @@ func handleDeleteDNSRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server := "localhost"
+	server := primaryDCHostname()
 	args := []string{"dns", "delete", server, zone, name, recType, value}
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {

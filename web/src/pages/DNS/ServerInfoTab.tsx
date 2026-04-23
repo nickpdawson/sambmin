@@ -179,7 +179,7 @@ export default function ServerInfoTab() {
             copyable
             style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
           >
-            samba-tool dns serverinfo localhost
+            samba-tool dns serverinfo {info?.server || 'localhost'}
           </Text>
         </Space>
       </Card>

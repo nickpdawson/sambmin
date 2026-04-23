@@ -94,11 +94,15 @@ export default function DNS() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<DNSRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DNSRecord | null>(null);
+  const [dcHostname, setDcHostname] = useState('localhost');
 
   useEffect(() => {
     api.get<{ zones: DNSZone[] }>('/dns/zones')
       .then((data) => setZones(data.zones))
       .finally(() => setLoading(false));
+    api.get<{ server: string }>('/dns/serverinfo')
+      .then((data) => { if (data.server) setDcHostname(data.server); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -615,7 +619,7 @@ export default function DNS() {
                         copyable
                         style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
                       >
-                        samba-tool dns query dc1.example.com {selectedZone} @ ALL
+                        samba-tool dns query {dcHostname} {selectedZone} @ ALL
                       </Text>
                     </Space>
                   </Card>
@@ -703,17 +707,17 @@ export default function DNS() {
                   <Descriptions column={1} size="small" title="Equivalent CLI Commands">
                     <Descriptions.Item label="Check SRV records">
                       <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
-                        samba-tool dns query dc1.example.com example.com _ldap._tcp SRV
+                        samba-tool dns query {dcHostname} example.com _ldap._tcp SRV
                       </Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="Zone info">
                       <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
-                        samba-tool dns zonelist dc1.example.com
+                        samba-tool dns zonelist {dcHostname}
                       </Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="SOA check">
                       <Text copyable style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
-                        dig @dc1.example.com example.com SOA +short
+                        dig @{dcHostname} example.com SOA +short
                       </Text>
                     </Descriptions.Item>
                   </Descriptions>
@@ -734,12 +738,12 @@ export default function DNS() {
           {
             key: 'srv-validator',
             label: 'SRV Validator',
-            children: <SRVValidatorTab />,
+            children: <SRVValidatorTab dcHostname={dcHostname} />,
           },
           {
             key: 'consistency',
             label: 'Consistency',
-            children: <ConsistencyTab />,
+            children: <ConsistencyTab dcHostname={dcHostname} />,
           },
         ]}
       />
@@ -758,6 +762,7 @@ export default function DNS() {
           }}
           zoneName={selectedZone}
           editRecord={editRecord}
+          dcHostname={dcHostname}
         />
       )}
 
@@ -794,7 +799,7 @@ export default function DNS() {
                 copyable
                 style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
               >
-                samba-tool dns delete dc1.example.com {selectedZone} {deleteTarget.name} {deleteTarget.type} {deleteTarget.value}
+                samba-tool dns delete {dcHostname} {selectedZone} {deleteTarget.name} {deleteTarget.type} {deleteTarget.value}
               </Text>
             </Card>
           </Space>

@@ -22,7 +22,7 @@ func getDNSClient() *dns.SambaClient {
 		return dnsClient
 	}
 
-	server := "localhost"
+	server := primaryDCHostname()
 	username := usernameFromBindDN(handlerConfig.BindDN)
 	password := os.Getenv("SAMBMIN_BIND_PW")
 	if password == "" {

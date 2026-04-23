@@ -28,7 +28,7 @@ interface DNSZone {
   name: string;
 }
 
-export default function ConsistencyTab() {
+export default function ConsistencyTab({ dcHostname = 'localhost' }: { dcHostname?: string }) {
   const [data, setData] = useState<ConsistencyResponse | null>(null);
   const [zones, setZones] = useState<DNSZone[]>([]);
   const [selectedZone, setSelectedZone] = useState<string>('');
@@ -218,13 +218,13 @@ export default function ConsistencyTab() {
             copyable
             style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
           >
-            samba-tool dns query dc1.example.com {data.zone} @ SOA
+            samba-tool dns query {dcHostname} {data.zone} @ SOA
           </Text>
           <Text
             copyable
             style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
           >
-            dig @dc1.example.com {data.zone} SOA +short
+            dig @{dcHostname} {data.zone} SOA +short
           </Text>
         </Space>
       </Card>

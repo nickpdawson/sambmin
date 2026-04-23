@@ -28,6 +28,8 @@ interface CreateRecordDrawerProps {
   zoneName: string;
   /** When set, drawer opens in edit mode with pre-filled values */
   editRecord?: DNSRecord | null;
+  /** Primary DC hostname for CLI preview */
+  dcHostname?: string;
 }
 
 const recordTypeOptions: { value: RecordType; label: string; description: string }[] = [
@@ -50,6 +52,7 @@ function buildCLI(
   zoneName: string,
   values: Record<string, unknown>,
   isEdit: boolean,
+  dcHostname: string,
 ): string {
   const action = isEdit ? 'update' : 'add';
   const name = (values.name as string) || '<name>';
@@ -83,7 +86,7 @@ function buildCLI(
       data = '<data>';
   }
 
-  return `samba-tool dns ${action} dc1.example.com ${zoneName} ${name} ${type} ${data}`;
+  return `samba-tool dns ${action} ${dcHostname} ${zoneName} ${name} ${type} ${data}`;
 }
 
 export default function CreateRecordDrawer({
@@ -92,6 +95,7 @@ export default function CreateRecordDrawer({
   onSuccess,
   zoneName,
   editRecord,
+  dcHostname = 'localhost',
 }: CreateRecordDrawerProps) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -219,8 +223,8 @@ export default function CreateRecordDrawer({
   // Build CLI preview from current form values
   const allValues = Form.useWatch([], form);
   const cliPreview = useMemo(
-    () => buildCLI(zoneName, allValues || {}, isEdit),
-    [zoneName, allValues, isEdit],
+    () => buildCLI(zoneName, allValues || {}, isEdit, dcHostname),
+    [zoneName, allValues, isEdit, dcHostname],
   );
 
   return (

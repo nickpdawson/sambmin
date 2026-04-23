@@ -145,7 +145,8 @@ func minInt2(a, b int) int {
 // handleDNSServerInfo returns DNS server configuration.
 // GET /api/dns/serverinfo
 func handleDNSServerInfo(w http.ResponseWriter, _ *http.Request) {
-	output, err := runDNSCommand("dns", "serverinfo", "localhost")
+	server := primaryDCHostname()
+	output, err := runDNSCommand("dns", "serverinfo", server)
 	if err != nil {
 		slog.Error("dns: failed to get server info", "error", err)
 		respondError(w, http.StatusInternalServerError,
@@ -153,7 +154,7 @@ func handleDNSServerInfo(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	info := dnspkg.ParseServerInfo(output, "localhost")
+	info := dnspkg.ParseServerInfo(output, server)
 	respondJSON(w, http.StatusOK, info)
 }
 
@@ -166,7 +167,7 @@ func handleDNSZoneInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	output, err := runDNSCommand("dns", "zoneinfo", "localhost", zone)
+	output, err := runDNSCommand("dns", "zoneinfo", primaryDCHostname(), zone)
 	if err != nil {
 		slog.Error("dns: failed to get zone info", "zone", zone, "error", err)
 		respondError(w, http.StatusInternalServerError,
@@ -202,7 +203,7 @@ func handleDNSZoneOptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server := "localhost"
+	server := primaryDCHostname()
 
 	if req.Aging != nil {
 		val := "0"
@@ -251,7 +252,7 @@ func handleDNSQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Server == "" {
-		req.Server = "localhost"
+		req.Server = primaryDCHostname()
 	}
 	if req.Type == "" {
 		req.Type = "ALL"
@@ -297,7 +298,7 @@ func handleDNSSRVValidator(w http.ResponseWriter, _ *http.Request) {
 		dcNames = append(dcNames, dc.Hostname)
 	}
 	if len(dcNames) == 0 {
-		dcNames = []string{"localhost"}
+		dcNames = []string{primaryDCHostname()}
 	}
 
 	var entries []models.SRVValidationEntry
@@ -403,7 +404,7 @@ func handleDNSConsistency(w http.ResponseWriter, r *http.Request) {
 		dcs = append(dcs, dcEntry{dc.Hostname, dc.Address})
 	}
 	if len(dcs) == 0 {
-		dcs = append(dcs, dcEntry{"localhost", "127.0.0.1"})
+		dcs = append(dcs, dcEntry{primaryDCHostname(), "127.0.0.1"})
 	}
 
 	type dcResult struct {

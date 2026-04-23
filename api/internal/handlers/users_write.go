@@ -32,8 +32,8 @@ func runSambaTool(ctx context.Context, sess *auth.Session, args ...string) (stri
 		return "", fmt.Errorf("get session credentials: %w", err)
 	}
 
-	// DRS and domain commands use DCE/RPC, not LDAP — skip -H flag for them
-	if len(args) > 0 && args[0] != "drs" && args[0] != "domain" {
+	// DRS, domain, and DNS commands use DCE/RPC, not LDAP — skip -H flag for them
+	if len(args) > 0 && args[0] != "drs" && args[0] != "domain" && args[0] != "dns" {
 		args = append(args, "-H", "ldap://localhost")
 	}
 	args = append(args, "-U", fmt.Sprintf("%s%%%s", sess.Username, password))

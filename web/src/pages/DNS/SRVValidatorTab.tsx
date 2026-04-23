@@ -36,7 +36,7 @@ const statusIcon: Record<string, React.ReactNode> = {
   error: <WarningOutlined style={{ color: '#faad14' }} />,
 };
 
-export default function SRVValidatorTab() {
+export default function SRVValidatorTab({ dcHostname = 'localhost' }: { dcHostname?: string }) {
   const [data, setData] = useState<SRVValidatorResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -189,7 +189,7 @@ export default function SRVValidatorTab() {
               copyable
               style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
             >
-              samba-tool dns query dc1.example.com example.com {rec} SRV
+              samba-tool dns query {dcHostname} example.com {rec} SRV
             </Text>
           ))}
           {data.records.length > 3 && (
