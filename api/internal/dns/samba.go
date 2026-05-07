@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nickdawson/sambmin/internal/models"
@@ -113,16 +114,103 @@ func (s *SambaClient) GetZoneRecords(ctx context.Context, zone, name string) ([]
 }
 
 // QueryAllRecords queries every name in a zone using wildcard '*'.
-// Falls back to root '@' if wildcard is unsupported.
+// Falls back to root '@' if wildcard is unsupported. After the initial query,
+// it recurses one level into child container nodes (names with Children>0)
+// because the parent listing only enumerates immediate children of the zone
+// root and does not show records nested below a container node (see e.g.
+// IoT devices that register an A record plus a `_dyndns` TXT child — both
+// are invisible until you query the container directly).
 func (s *SambaClient) QueryAllRecords(ctx context.Context, zone string) ([]models.DNSRecord, error) {
 	output, err := s.run(ctx, "dns", "query", s.server, zone, "*", "ALL")
 	if err != nil {
 		// Wildcard may not be supported; fall back to @ query
 		slog.Debug("dns: wildcard query failed, falling back to @", "zone", zone, "error", err)
-		return s.ListRecords(ctx, zone, "")
+		output, err = s.run(ctx, "dns", "query", s.server, zone, "@", "ALL")
+		if err != nil {
+			if strings.Contains(err.Error(), "WERR_DNS_ERROR_NAME_DOES_NOT_EXIST") {
+				return []models.DNSRecord{}, nil
+			}
+			return nil, fmt.Errorf("list records for zone %s: %w", zone, err)
+		}
 	}
 
-	return ParseRecordOutput(output, ""), nil
+	records, containers := ParseRecordOutputWithMeta(output, "")
+	if len(containers) == 0 {
+		return records, nil
+	}
+	return s.expandContainers(ctx, zone, records, containers), nil
+}
+
+// maxContainerWorkers caps concurrent samba-tool subqueries when expanding
+// child container nodes. Higher values reduce wall time but pile load onto
+// the DC; 8 keeps a busy zone (~50 IoT devices) under ~1s on a healthy DC.
+const maxContainerWorkers = 8
+
+// expandContainers runs a subquery for each child-container name in parallel
+// and merges the resulting records into baseRecords. Records returned by a
+// subquery are renamed: the subquery's Name="" (its @ root) becomes the
+// container name; Name="foo" becomes "foo.<container>".
+//
+// Authoritative-source rule: any base record whose Name matches a container
+// is dropped, because the parent `@ ALL` listing reports stale Records=0 for
+// names that actually carry data (the subquery is the source of truth).
+func (s *SambaClient) expandContainers(ctx context.Context, zone string, baseRecords []models.DNSRecord, containers []string) []models.DNSRecord {
+	containerSet := make(map[string]struct{}, len(containers))
+	for _, c := range containers {
+		containerSet[c] = struct{}{}
+	}
+
+	merged := make([]models.DNSRecord, 0, len(baseRecords)+len(containers))
+	for _, r := range baseRecords {
+		if _, isContainer := containerSet[r.Name]; isContainer {
+			continue
+		}
+		merged = append(merged, r)
+	}
+
+	type result struct {
+		container string
+		records   []models.DNSRecord
+		err       error
+	}
+
+	results := make(chan result, len(containers))
+	sem := make(chan struct{}, maxContainerWorkers)
+	var wg sync.WaitGroup
+
+	for _, c := range containers {
+		wg.Add(1)
+		go func(name string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			subRecords, err := s.GetZoneRecords(ctx, zone, name)
+			results <- result{container: name, records: subRecords, err: err}
+		}(c)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for res := range results {
+		if res.err != nil {
+			slog.Warn("dns: subquery failed for container", "zone", zone, "name", res.container, "error", res.err)
+			continue
+		}
+		for _, r := range res.records {
+			if r.Name == "" || r.Name == "@" || r.Name == res.container {
+				r.Name = res.container
+			} else {
+				r.Name = r.Name + "." + res.container
+			}
+			merged = append(merged, r)
+		}
+	}
+
+	return merged
 }
 
 // --- Parsing helpers ---
@@ -214,7 +302,21 @@ var ttlRe = regexp.MustCompile(`ttl=(\d+)`)
 // parseRecordOutput parses the text output of `samba-tool dns query`.
 // The output contains name headers followed by record detail lines.
 func ParseRecordOutput(output string, defaultName string) []models.DNSRecord {
+	records, _ := ParseRecordOutputWithMeta(output, defaultName)
+	return records
+}
+
+// ParseRecordOutputWithMeta parses samba-tool dns query output and additionally
+// returns the names of entries that have child nodes (Children>0). The caller
+// can use this list to issue subqueries for nested records that are not
+// surfaced by a single-level `@ ALL` query.
+//
+// The "@" root is excluded from the container list since it represents the
+// queried name itself, not a separately-queryable child.
+func ParseRecordOutputWithMeta(output string, defaultName string) ([]models.DNSRecord, []string) {
 	var records []models.DNSRecord
+	var containers []string
+	seenContainer := make(map[string]struct{})
 	currentName := defaultName
 
 	scanner := bufio.NewScanner(strings.NewReader(output))
@@ -224,10 +326,18 @@ func ParseRecordOutput(output string, defaultName string) []models.DNSRecord {
 		// Check for name header: "  Name=dc1, Records=2, Children=0"
 		if m := nameLineRe.FindStringSubmatch(line); m != nil {
 			name := m[1]
+			childCount, _ := strconv.Atoi(m[3])
 			if name == "" {
-				name = "@"
+				currentName = "@"
+			} else {
+				currentName = name
+				if childCount > 0 {
+					if _, dup := seenContainer[name]; !dup {
+						seenContainer[name] = struct{}{}
+						containers = append(containers, name)
+					}
+				}
 			}
-			currentName = name
 			continue
 		}
 
@@ -280,7 +390,7 @@ func ParseRecordOutput(output string, defaultName string) []models.DNSRecord {
 		records = append(records, rec)
 	}
 
-	return records
+	return records, containers
 }
 
 // extractValueBeforeParens returns the text before the first '(' character,

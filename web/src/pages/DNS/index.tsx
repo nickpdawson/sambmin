@@ -362,13 +362,6 @@ export default function DNS() {
       render: (p: number | undefined) => p !== undefined ? p : '---',
     },
     {
-      title: 'Dynamic',
-      dataIndex: 'dynamic',
-      key: 'dynamic',
-      width: 80,
-      render: (dynamic: boolean) => dynamic ? <Tag color="cyan">dyn</Tag> : <Tag>static</Tag>,
-    },
-    {
       title: '',
       key: 'actions',
       width: 48,
