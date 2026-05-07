@@ -4,6 +4,16 @@ All notable changes to Sambmin will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0-beta.3] - 2026-05-06
+
+### Fixed
+- **DNS zone listing now surfaces records nested under container nodes** — `samba-tool dns query @ ALL` only enumerates immediate children of the zone root, so dynamically-registered IoT devices (e.g. an A record at `kp115-0e309f` plus a `_dyndns` TXT child) were invisible. `QueryAllRecords` now follows the initial query with parallel subqueries (cap 8) for any name reporting `Children>0`, remapping subquery names back into the flat zone view. `iot.dzsec.net` went from 5 visible records to ~110.
+
+### Removed
+- **Per-record Dynamic (`dyn`/`static`) column in the records table** — `samba-tool dns query` does not expose the `dwTimeStamp` field, so the parser was hardcoding every non-SOA record as dynamic. Will return once we read the `dnsRecord` blob via LDAP.
+
+## [0.1.0-beta.2] - 2026-04-23
+
 ### Added
 - **User Profile tab** — New tab in user detail drawer with Windows profile fields (profile path, logon script, home drive, home directory) and Unix/POSIX attributes (login shell, home directory, UID, GID number)
 - All profile fields are editable inline with LDAP modify writes
