@@ -4,6 +4,9 @@ All notable changes to Sambmin will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Auto-assign RFC2307 POSIX attributes on new users and groups** — when the domain is already using RFC2307 (detected by sampling for any existing `uidNumber`), Sambmin now sets `uidNumber`, `gidNumber`, `unixHomeDirectory`, and `loginShell` on newly created users, and `gidNumber` on newly created groups. Allocation mirrors LDAP Account Manager: max(existing) + 1, floored at a configurable minimum (default 10000). If the primary group (typically Domain Users) lacks a `gidNumber`, one is allocated and written back. Configurable via a new `rfc2307` block in `config.yaml` (`min_uid`, `min_gid`, `default_shell`, `home_template`). Without this, member hosts using `idmap config <domain> : backend = ad / schema_mode = RFC2307` (e.g. TrueNAS) silently drop newly created principals into winbind's negative cache, making them invisible to NSS-driven UI dropdowns.
+
 ## [0.1.0-beta.3] - 2026-05-06
 
 ### Fixed

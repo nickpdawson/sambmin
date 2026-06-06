@@ -8,16 +8,25 @@ import (
 	"github.com/nickdawson/sambmin/internal/auth"
 	"github.com/nickdawson/sambmin/internal/config"
 	"github.com/nickdawson/sambmin/internal/directory"
+	"github.com/nickdawson/sambmin/internal/posix"
 )
 
 // dirClient is the shared directory client, nil when running in mock mode.
 var dirClient *directory.Client
+
+// posixAllocator is nil in mock mode; otherwise auto-assigns RFC2307
+// attributes on newly created users and groups when the domain is using
+// RFC2307 already.
+var posixAllocator *posix.Allocator
 
 // Register wires all API routes. If dir is nil, mock handlers are used for reads.
 // If store is non-nil, all routes except health and login require authentication.
 func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client, store *auth.Store) {
 	dirClient = dir
 	handlerConfig = cfg
+	if dir != nil {
+		posixAllocator = posix.New(dir, cfg.RFC2307)
+	}
 
 	if dir != nil {
 		slog.Info("routes: using live LDAP handlers")

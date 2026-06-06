@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 
+	"github.com/nickdawson/sambmin/internal/auth"
 	"github.com/nickdawson/sambmin/internal/validate"
 )
 
@@ -57,7 +59,58 @@ func handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("group created", "name", req.Name, "actor", sess.Username)
-	respondJSON(w, http.StatusCreated, map[string]any{"success": true, "name": req.Name})
+
+	posixApplied := applyPosixToNewGroup(r.Context(), sess, req.Name)
+
+	respondJSON(w, http.StatusCreated, map[string]any{
+		"success":      true,
+		"name":         req.Name,
+		"posixApplied": posixApplied,
+	})
+}
+
+// applyPosixToNewGroup sets gidNumber on a freshly-created group when the
+// domain is using RFC2307. Errors are logged, not returned. See
+// applyPosixToNewUser for rationale.
+func applyPosixToNewGroup(ctx context.Context, sess *auth.Session, name string) bool {
+	if posixAllocator == nil || dirClient == nil {
+		return false
+	}
+	enabled, err := posixAllocator.IsEnabled(ctx)
+	if err != nil {
+		slog.Warn("posix: detect failed, skipping auto-assignment", "group", name, "error", err)
+		return false
+	}
+	if !enabled {
+		return false
+	}
+
+	group, err := dirClient.GetGroupBySAM(ctx, name)
+	if err != nil {
+		slog.Warn("posix: cannot find new group to apply attrs", "group", name, "error", err)
+		return false
+	}
+
+	password, err := sessionStore.Password(sess)
+	if err != nil {
+		slog.Warn("posix: session credentials unavailable", "group", name, "error", err)
+		return false
+	}
+
+	gid, err := posixAllocator.AllocateGID(ctx)
+	if err != nil {
+		slog.Warn("posix: allocate gid failed", "group", name, "error", err)
+		return false
+	}
+
+	attrs := posixAllocator.GroupAttrs(gid)
+	if err := dirClient.ModifyAttributes(ctx, group.DN, attrs, sess.DN, password); err != nil {
+		slog.Warn("posix: apply group attrs failed", "group", name, "dn", group.DN, "error", err)
+		return false
+	}
+
+	slog.Info("posix: applied attrs to new group", "group", name, "gidNumber", gid)
+	return true
 }
 
 // --- Group Update ---

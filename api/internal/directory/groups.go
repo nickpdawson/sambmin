@@ -86,6 +86,39 @@ func (c *Client) GetGroup(ctx context.Context, dn string) (*models.Group, error)
 	return &g, nil
 }
 
+// GetGroupBySAM looks up a group by sAMAccountName. Mirrors GetUserBySAM.
+func (c *Client) GetGroupBySAM(ctx context.Context, sam string) (*models.Group, error) {
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get group by sam: %w", err)
+	}
+	defer c.pool.Put(conn)
+
+	filter := fmt.Sprintf("(&(objectClass=group)%s)", FilterBySAM(sam))
+
+	sr := goldap.NewSearchRequest(
+		c.baseDN,
+		goldap.ScopeWholeSubtree,
+		goldap.NeverDerefAliases,
+		0, 1, false,
+		filter,
+		ldap.GroupAttrs,
+		nil,
+	)
+
+	result, err := conn.Search(sr)
+	if err != nil {
+		return nil, fmt.Errorf("search group by sam %s: %w", sam, err)
+	}
+
+	if len(result.Entries) == 0 {
+		return nil, fmt.Errorf("group not found: %s", sam)
+	}
+
+	g := groupFromEntry(result.Entries[0])
+	return &g, nil
+}
+
 // GetGroupMembers returns the resolved member names for a group.
 func (c *Client) GetGroupMembers(ctx context.Context, dn string) ([]models.User, error) {
 	group, err := c.GetGroup(ctx, dn)

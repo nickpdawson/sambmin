@@ -189,10 +189,73 @@ func handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("user created", "username", req.Username, "actor", sess.Username)
+
+	posixApplied := applyPosixToNewUser(r.Context(), sess, req.Username)
+
 	respondJSON(w, http.StatusCreated, map[string]any{
-		"success":  true,
-		"username": req.Username,
+		"success":      true,
+		"username":     req.Username,
+		"posixApplied": posixApplied,
 	})
+}
+
+// applyPosixToNewUser sets uidNumber/gidNumber/unixHomeDirectory/loginShell
+// on a freshly-created user when the domain is using RFC2307. Errors are
+// logged but not returned — the user creation already succeeded and we
+// don't want a POSIX-attribute hiccup to look like a failed create. The
+// Profile tab can fill these in by hand if anything goes wrong.
+//
+// Returns true if attributes were applied, false if skipped or failed.
+func applyPosixToNewUser(ctx context.Context, sess *auth.Session, username string) bool {
+	if posixAllocator == nil || dirClient == nil {
+		return false
+	}
+	enabled, err := posixAllocator.IsEnabled(ctx)
+	if err != nil {
+		slog.Warn("posix: detect failed, skipping auto-assignment", "username", username, "error", err)
+		return false
+	}
+	if !enabled {
+		return false
+	}
+
+	user, err := dirClient.GetUserBySAM(ctx, username)
+	if err != nil {
+		slog.Warn("posix: cannot find new user to apply attrs", "username", username, "error", err)
+		return false
+	}
+
+	password, err := sessionStore.Password(sess)
+	if err != nil {
+		slog.Warn("posix: session credentials unavailable", "username", username, "error", err)
+		return false
+	}
+
+	uid, err := posixAllocator.AllocateUID(ctx)
+	if err != nil {
+		slog.Warn("posix: allocate uid failed", "username", username, "error", err)
+		return false
+	}
+
+	// samba-tool user create assigns primaryGroupID=513 (Domain Users) by
+	// default. Resolve its gidNumber, allocating one if it doesn't have one
+	// yet — RFC2307 winbind on member hosts will refuse to map the user
+	// without it.
+	primaryDN := fmt.Sprintf("CN=Domain Users,CN=Users,%s", handlerConfig.BaseDN)
+	gid, err := posixAllocator.ResolvePrimaryGroupGID(ctx, primaryDN, sess.DN, password)
+	if err != nil {
+		slog.Warn("posix: resolve primary group gid failed", "username", username, "error", err)
+		return false
+	}
+
+	attrs := posixAllocator.UserAttrs(uid, gid, username)
+	if err := dirClient.ModifyAttributes(ctx, user.DN, attrs, sess.DN, password); err != nil {
+		slog.Warn("posix: apply user attrs failed", "username", username, "dn", user.DN, "error", err)
+		return false
+	}
+
+	slog.Info("posix: applied attrs to new user", "username", username, "uidNumber", uid, "gidNumber", gid)
+	return true
 }
 
 // --- User Update ---
