@@ -7,9 +7,14 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/nickdawson/sambmin/internal/dns"
 )
+
+// dnsZoneEnrichWorkers caps concurrent samba-tool QueryAllRecords calls when
+// enriching the zone list. Higher cuts wall-time but piles load on the DC.
+const dnsZoneEnrichWorkers = 8
 
 // dnsClient is the shared samba-tool DNS client, initialized lazily on first use.
 var dnsClient *dns.SambaClient
@@ -63,28 +68,36 @@ func handleListDNSZonesLive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Enrich zones with record counts by querying each zone
+	// Enrich zones with record counts in parallel — sequential is ~2s/zone
+	// over RPC, so 30+ zones easily blow past the http.Server WriteTimeout.
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, dnsZoneEnrichWorkers)
 	for i := range zones {
-		records, err := client.QueryAllRecords(r.Context(), zones[i].Name)
-		if err != nil {
-			slog.Debug("dns: failed to count records for zone",
-				"zone", zones[i].Name, "error", err)
-			continue
-		}
-		zones[i].Records = len(records)
-
-		// Extract SOA serial if a SOA record is present
-		for _, rec := range records {
-			if rec.Type == "SOA" {
-				// SOA value format: "ns email serial refresh retry expire minttl"
-				fields := strings.Fields(rec.Value)
-				if len(fields) >= 3 {
-					fmt.Sscanf(fields[2], "%d", &zones[i].SOASerial)
-				}
-				break
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			records, err := client.QueryAllRecords(r.Context(), zones[i].Name)
+			if err != nil {
+				slog.Debug("dns: failed to count records for zone",
+					"zone", zones[i].Name, "error", err)
+				return
 			}
-		}
+			zones[i].Records = len(records)
+			for _, rec := range records {
+				if rec.Type == "SOA" {
+					// SOA value format: "ns email serial refresh retry expire minttl"
+					fields := strings.Fields(rec.Value)
+					if len(fields) >= 3 {
+						fmt.Sscanf(fields[2], "%d", &zones[i].SOASerial)
+					}
+					break
+				}
+			}
+		}(i)
 	}
+	wg.Wait()
 
 	respondJSON(w, http.StatusOK, map[string]any{
 		"zones": zones,

@@ -2,7 +2,12 @@
 
 All notable changes to Sambmin will be documented in this file.
 
-## [Unreleased]
+## [0.1.0-beta.5] - 2026-06-28
+
+### Fixed
+- **DNS zone listing returned 502 from nginx, surfacing as "Zones (0)" in the UI** — `handleListDNSZonesLive` enriched every zone sequentially with a `samba-tool dns query` (~2s each over RPC), so on a 34-zone domain the request ran ~80s. The Go `http.Server` had `WriteTimeout: 30s`, which slammed the TCP connection shut mid-handler; nginx logged `upstream prematurely closed connection while reading response header from upstream` and returned 502. The handler kept running and eventually logged `status:200`, hiding the failure server-side. Two changes: (1) bumped `WriteTimeout` to 180s in `cmd/sambmin/main.go`; (2) parallelized per-zone enrichment with a worker pool of 8 in `handleListDNSZonesLive` (mirrors `expandContainers`). A 34-zone DC now responds in ~20s.
+
+## [0.1.0-beta.4] - 2026-06-27
 
 ### Added
 - **Auto-assign RFC2307 POSIX attributes on new users and groups** — when the domain is already using RFC2307 (detected by sampling for any existing `uidNumber`), Sambmin now sets `uidNumber`, `gidNumber`, `unixHomeDirectory`, and `loginShell` on newly created users, and `gidNumber` on newly created groups. Allocation mirrors LDAP Account Manager: max(existing) + 1, floored at a configurable minimum (default 10000). If the primary group (typically Domain Users) lacks a `gidNumber`, one is allocated and written back. Configurable via a new `rfc2307` block in `config.yaml` (`min_uid`, `min_gid`, `default_shell`, `home_template`). Without this, member hosts using `idmap config <domain> : backend = ad / schema_mode = RFC2307` (e.g. TrueNAS) silently drop newly created principals into winbind's negative cache, making them invisible to NSS-driven UI dropdowns.

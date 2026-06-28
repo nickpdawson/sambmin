@@ -96,7 +96,7 @@ func main() {
 		Addr:         fmt.Sprintf("%s:%d", cfg.BindAddr, cfg.Port),
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		WriteTimeout: 180 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
