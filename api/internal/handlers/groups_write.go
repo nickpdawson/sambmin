@@ -49,7 +49,11 @@ func handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 		args = append(args, "--group-type", req.GroupType)
 	}
 	if req.OU != "" {
-		args = append(args, "--groupou", req.OU)
+		// --groupou wants an RDN sequence relative to the base DN; the
+		// frontend sends full DNs, so strip the base-DN suffix if present.
+		if ou := relativeToBase(req.OU, baseDN()); ou != "" {
+			args = append(args, "--groupou", ou)
+		}
 	}
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {
@@ -218,8 +222,8 @@ func handleAddGroupMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	memberName := cnFromDN(req.MemberDN)
-	if memberName == "" {
+	memberName, err := samAccountNameFromDN(r.Context(), req.MemberDN)
+	if err != nil {
 		respondError(w, http.StatusBadRequest, "could not extract member name from DN")
 		return
 	}
@@ -248,8 +252,8 @@ func handleRemoveGroupMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	memberDN := r.PathValue("memberDn")
-	memberName := cnFromDN(memberDN)
-	if memberName == "" {
+	memberName, err := samAccountNameFromDN(r.Context(), memberDN)
+	if err != nil {
 		respondError(w, http.StatusBadRequest, "could not extract member name from DN")
 		return
 	}
@@ -262,6 +266,41 @@ func handleRemoveGroupMember(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("group member removed", "group", groupName, "member", memberName, "actor", sess.Username)
 	respondJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
+// --- Group Move ---
+
+func handleMoveGroup(w http.ResponseWriter, r *http.Request) {
+	sess := requireSession(w, r)
+	if sess == nil {
+		return
+	}
+
+	dn := r.PathValue("dn")
+	groupName, err := samAccountNameFromDN(r.Context(), dn)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "could not extract group name from DN")
+		return
+	}
+
+	var req moveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.TargetOU == "" {
+		respondError(w, http.StatusBadRequest, "target OU required")
+		return
+	}
+
+	if _, err := runSambaTool(r.Context(), sess, "group", "move", groupName, req.TargetOU); err != nil {
+		slog.Error("group move failed", "group", groupName, "targetOU", req.TargetOU, "actor", sess.Username, "error", err)
+		respondSafeError(w, http.StatusInternalServerError, "group move failed", err)
+		return
+	}
+
+	slog.Info("group moved", "group", groupName, "targetOU", req.TargetOU, "actor", sess.Username)
+	respondJSON(w, http.StatusOK, map[string]any{"success": true, "name": groupName})
 }
 
 // --- Group Rename ---

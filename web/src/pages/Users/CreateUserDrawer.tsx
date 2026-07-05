@@ -83,7 +83,7 @@ export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUse
     try {
       const values = await form.validateFields();
       setLoading(true);
-      await api.post('/users', {
+      const result = await api.post('/users', {
         username: values.samAccountName,
         password: values.password,
         givenName: values.givenName,
@@ -92,9 +92,18 @@ export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUse
         department: values.department,
         title: values.title,
         ou: values.ou,
+        groups: values.groups,
         mustChangePassword: values.mustChangePassword ?? true,
       });
-      notification.success({ message: 'User created successfully', description: values.displayName || values.samAccountName });
+      const failed = (result as { groupsFailed?: string[] }).groupsFailed;
+      if (failed && failed.length > 0) {
+        notification.warning({
+          message: 'User created, but some group additions failed',
+          description: `Could not add to: ${failed.join(', ')}`,
+        });
+      } else {
+        notification.success({ message: 'User created successfully', description: values.displayName || values.samAccountName });
+      }
       form.resetFields();
       onSuccess();
     } catch (err: unknown) {

@@ -599,6 +599,50 @@ func TestHandleCreateOUWithParent(t *testing.T) {
 	}
 }
 
+func TestHandleCreateOUContainerParentRejected(t *testing.T) {
+	_, sess := setupTestAuth(t)
+	setupMockSambaTool(t)
+
+	body := `{"name":"Tenants","parentDn":"CN=Users,DC=test,DC=com"}`
+	req := httptest.NewRequest("POST", "/api/ous", strings.NewReader(body))
+	addSessionCookie(req, sess)
+	w := httptest.NewRecorder()
+
+	handleCreateOU(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+	if !strings.Contains(w.Body.String(), "container") {
+		t.Errorf("body = %q, want container explanation", w.Body.String())
+	}
+}
+
+func TestRelativeToBase(t *testing.T) {
+	tests := []struct {
+		name string
+		dn   string
+		base string
+		want string
+	}{
+		{"full DN under base", "OU=Tenants,DC=test,DC=com", "DC=test,DC=com", "OU=Tenants"},
+		{"nested full DN", "OU=Sub,OU=Tenants,DC=test,DC=com", "DC=test,DC=com", "OU=Sub,OU=Tenants"},
+		{"container full DN", "CN=Users,DC=test,DC=com", "DC=test,DC=com", "CN=Users"},
+		{"already relative", "OU=Tenants", "DC=test,DC=com", "OU=Tenants"},
+		{"dn equals base", "DC=test,DC=com", "DC=test,DC=com", ""},
+		{"case-insensitive base", "OU=Tenants,dc=test,dc=com", "DC=test,DC=com", "OU=Tenants"},
+		{"empty base", "OU=Tenants,DC=test,DC=com", "", "OU=Tenants,DC=test,DC=com"},
+		{"different base kept as-is", "OU=Tenants,DC=other,DC=net", "DC=test,DC=com", "OU=Tenants,DC=other,DC=net"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := relativeToBase(tt.dn, tt.base); got != tt.want {
+				t.Errorf("relativeToBase(%q, %q) = %q, want %q", tt.dn, tt.base, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestHandleDeleteOUSuccess(t *testing.T) {
 	_, sess := setupTestAuth(t)
 	setupMockSambaTool(t)

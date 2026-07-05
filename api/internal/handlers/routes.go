@@ -90,6 +90,7 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client, sto
 	protected.Handle("POST /api/users/{dn}/disable", requireRole(auth.RoleOperator, handleDisableUser))
 	protected.Handle("POST /api/users/{dn}/unlock", requireRole(auth.RoleOperator, handleUnlockUser))
 	protected.Handle("POST /api/users/{dn}/rename", requireRole(auth.RoleOperator, handleRenameUser))
+	protected.Handle("POST /api/users/{dn}/move", requireRole(auth.RoleOperator, handleMoveUser))
 
 	// Groups (read = authenticated, write = operator)
 	if dir != nil {
@@ -105,6 +106,7 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client, sto
 	protected.Handle("POST /api/groups/{dn}/members", requireRole(auth.RoleOperator, handleAddGroupMember))
 	protected.Handle("DELETE /api/groups/{dn}/members/{memberDn}", requireRole(auth.RoleOperator, handleRemoveGroupMember))
 	protected.Handle("POST /api/groups/{dn}/rename", requireRole(auth.RoleOperator, handleRenameGroup))
+	protected.Handle("POST /api/groups/{dn}/move", requireRole(auth.RoleOperator, handleMoveGroup))
 
 	// Computers (read = authenticated, write = operator)
 	if dir != nil {
@@ -144,6 +146,7 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client, sto
 	}
 	protected.Handle("POST /api/ous", requireRole(auth.RoleOperator, handleCreateOU))
 	protected.Handle("DELETE /api/ous/{dn}", requireRole(auth.RoleOperator, handleDeleteOU))
+	protected.Handle("POST /api/ous/{dn}/move", requireRole(auth.RoleOperator, handleMoveOU))
 
 	// DNS (read = authenticated, write = dns admin)
 	if dir != nil {

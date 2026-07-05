@@ -2,6 +2,17 @@
 
 All notable changes to Sambmin will be documented in this file.
 
+## [0.1.0-beta.6] - 2026-07-05
+
+### Fixed
+- **Adding users to groups failed with "Unable to find <display name>"** — `handleAddGroupMember`/`handleRemoveGroupMember` passed the DN's leading CN (usually the display name, e.g. "Test User") to `samba-tool group addmembers`, which resolves members by sAMAccountName. Both handlers now resolve the member DN to its sAMAccountName via LDAP (`samAccountNameFromDN`), falling back to the CN only when LDAP is unavailable.
+- **Creating an OU under a CN= container silently failed** — picking "Users"/"Computers" as the parent produced `LDAP_NAMING_VIOLATION` (organizationalUnit is not a valid child class of a container). The backend now rejects CN= parents with a clear 400, the Parent OU dropdown only offers real OUs (full DNs shown), and create-modal errors are surfaced in a Modal instead of being swallowed.
+- **Creating a user or group in a specific OU never worked** — the frontend sends full DNs, but `samba-tool`'s `--userou`/`--groupou` flags expect an RDN sequence relative to the base DN (samba appends the domain DN itself, doubling it). New `relativeToBase` helper strips the base-DN suffix server-side before invoking samba-tool.
+- **"Additional Groups" in the create-user drawer was collected but never sent** — the create request now carries `groups[]`; the backend adds memberships after a successful create and reports any failures back (`groupsFailed`), which the UI surfaces as a warning.
+
+### Added
+- **Move objects between OUs** — new endpoints `POST /api/users/{dn}/move`, `POST /api/groups/{dn}/move`, and `POST /api/ous/{dn}/move` (wrapping `samba-tool user|group|ou move`). Users and Groups pages gain a "Move to OU" action; the OUs page "Move OU" action (previously "not yet implemented") now works, with self/descendant destinations excluded and a domain-root option.
+
 ## [0.1.0-beta.5] - 2026-06-28
 
 ### Fixed

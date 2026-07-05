@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/nickdawson/sambmin/internal/validate"
 )
@@ -35,10 +36,20 @@ func handleCreateOU(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Organizational units can only live under other OUs or the domain
+	// root — AD rejects them inside CN= containers (Users, Computers, ...)
+	// with a naming violation, so catch that here with a clear message.
+	parent := strings.TrimSpace(req.ParentDN)
+	if strings.HasPrefix(strings.ToUpper(parent), "CN=") {
+		respondError(w, http.StatusBadRequest,
+			"cannot create an OU inside a container like "+cnFromDN(parent)+" — choose an organizational unit or leave parent empty for the domain root")
+		return
+	}
+
 	// Build the OU DN
 	ouDN := "OU=" + req.Name
-	if req.ParentDN != "" {
-		ouDN += "," + req.ParentDN
+	if parent != "" {
+		ouDN += "," + parent
 	} else if handlerConfig != nil {
 		ouDN += "," + handlerConfig.BaseDN
 	}
@@ -77,5 +88,44 @@ func handleDeleteOU(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("OU deleted", "dn", dn, "actor", sess.Username)
+	respondJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
+// --- OU Move ---
+
+func handleMoveOU(w http.ResponseWriter, r *http.Request) {
+	sess := requireSession(w, r)
+	if sess == nil {
+		return
+	}
+
+	dn := r.PathValue("dn")
+	if dn == "" {
+		respondError(w, http.StatusBadRequest, "OU DN required")
+		return
+	}
+
+	var req moveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.TargetOU == "" {
+		respondError(w, http.StatusBadRequest, "target OU required")
+		return
+	}
+	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(req.TargetOU)), "CN=") {
+		respondError(w, http.StatusBadRequest,
+			"cannot move an OU into a container like "+cnFromDN(req.TargetOU)+" — choose an organizational unit or the domain root")
+		return
+	}
+
+	if _, err := runSambaTool(r.Context(), sess, "ou", "move", dn, req.TargetOU); err != nil {
+		slog.Error("OU move failed", "dn", dn, "targetOU", req.TargetOU, "actor", sess.Username, "error", err)
+		respondSafeError(w, http.StatusInternalServerError, "OU move failed", err)
+		return
+	}
+
+	slog.Info("OU moved", "dn", dn, "targetOU", req.TargetOU, "actor", sess.Username)
 	respondJSON(w, http.StatusOK, map[string]any{"success": true})
 }

@@ -287,6 +287,16 @@ export default function OUs() {
   const [createLoading, setCreateLoading] = useState(false);
   const [ouChildren, setOUChildren] = useState<OUChild[]>([]);
   const [childrenLoading, setChildrenLoading] = useState(false);
+  const [moveTarget, setMoveTarget] = useState<OU | null>(null);
+  const [moveDest, setMoveDest] = useState<string | null>(null);
+  const [moveLoading, setMoveLoading] = useState(false);
+
+  /* Only real OUs can parent another OU — AD rejects OUs inside CN=
+     containers (Users, Computers, ...) with a naming violation. */
+  const parentOUOptions = useMemo(
+    () => ous.filter((ou) => ou.dn.toUpperCase().startsWith('OU=')),
+    [ous],
+  );
 
   const handleCreateOU = useCallback(async () => {
     try {
@@ -302,13 +312,32 @@ export default function OUs() {
       setCreateOpen(false);
       refresh();
     } catch (err: unknown) {
-      if (err instanceof Error && err.message) {
-        notification.error({ message: 'Create OU failed', description: err.message });
-      }
+      if (err && typeof err === 'object' && 'errorFields' in err) return; // form validation — inline errors shown
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      Modal.error({ title: 'Create OU failed', content: msg });
     } finally {
       setCreateLoading(false);
     }
   }, [createForm]);
+
+  const handleMoveOU = useCallback(async () => {
+    if (!moveTarget || !moveDest) return;
+    setMoveLoading(true);
+    try {
+      await api.post(`/ous/${encodeURIComponent(moveTarget.dn)}/move`, { targetOu: moveDest });
+      notification.success({ message: `OU "${moveTarget.name}" moved` });
+      setMoveTarget(null);
+      setMoveDest(null);
+      setDrawerOpen(false);
+      setSelectedOU(null);
+      refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      Modal.error({ title: 'Move OU failed', content: msg });
+    } finally {
+      setMoveLoading(false);
+    }
+  }, [moveTarget, moveDest]);
 
   const handleDeleteOU = useCallback(async (ou: OU) => {
     Modal.confirm({
@@ -385,6 +414,29 @@ export default function OUs() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  /* ---- move destination options ---- */
+  const rootDN = useMemo(() => {
+    for (const ou of ous) {
+      const p = parentDN(ou.dn);
+      if (p.toUpperCase().startsWith('DC=')) return p;
+    }
+    return '';
+  }, [ous]);
+
+  const moveDestOptions = useMemo(() => {
+    if (!moveTarget) return [];
+    const opts = parentOUOptions
+      .filter((ou) =>
+        ou.dn !== moveTarget.dn &&                     // not itself
+        !ou.dn.endsWith(',' + moveTarget.dn) &&        // not a descendant
+        ou.dn !== parentDN(moveTarget.dn))             // not current parent
+      .map((ou) => ({ value: ou.dn, label: ou.dn }));
+    if (rootDN && parentDN(moveTarget.dn) !== rootDN) {
+      opts.unshift({ value: rootDN, label: `Domain root (${rootDN})` });
+    }
+    return opts;
+  }, [moveTarget, parentOUOptions, rootDN]);
 
   /* ---- filtering ---- */
   const filteredOUs = useMemo(() => {
@@ -511,6 +563,8 @@ export default function OUs() {
                   openDetail(record);
                 } else if (key === 'delete') {
                   handleDeleteOU(record);
+                } else if (key === 'move') {
+                  setMoveTarget(record);
                 } else {
                   notification.info({ message: `${key} — not yet implemented` });
                 }
@@ -761,7 +815,7 @@ export default function OUs() {
                 <Button
                   block
                   icon={<ApartmentOutlined />}
-                  onClick={() => notification.info({ message: 'Move OU — not yet implemented' })}
+                  onClick={() => selectedOU && setMoveTarget(selectedOU)}
                 >
                   Move to Another OU
                 </Button>
@@ -779,6 +833,32 @@ export default function OUs() {
           </>
         )}
       </Drawer>
+
+      {/* Move OU Modal */}
+      <Modal
+        title={`Move OU — ${moveTarget?.name || ''}`}
+        open={!!moveTarget}
+        onCancel={() => { setMoveTarget(null); setMoveDest(null); }}
+        onOk={handleMoveOU}
+        okText="Move"
+        okButtonProps={{ loading: moveLoading, disabled: !moveDest }}
+      >
+        <p style={{ marginTop: 0 }}>
+          Current location:{' '}
+          <Text code style={{ fontSize: 12 }}>{moveTarget ? parentDN(moveTarget.dn) : ''}</Text>
+        </p>
+        <Select
+          placeholder="Select destination OU..."
+          style={{ width: '100%' }}
+          value={moveDest}
+          onChange={setMoveDest}
+          options={moveDestOptions}
+          showSearch
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+        />
+      </Modal>
 
       {/* Create OU Modal */}
       <Modal
@@ -800,11 +880,15 @@ export default function OUs() {
           <Form.Item name="description" label="Description">
             <Input placeholder="Optional description" />
           </Form.Item>
-          <Form.Item name="parentDn" label="Parent OU">
+          <Form.Item
+            name="parentDn"
+            label="Parent OU"
+            extra="Only organizational units can contain other OUs — containers like Users and Computers cannot. Leave empty to create at the domain root."
+          >
             <Select
               placeholder="Root (Base DN)"
               allowClear
-              options={ous.map((ou) => ({ value: ou.dn, label: ou.name }))}
+              options={parentOUOptions.map((ou) => ({ value: ou.dn, label: ou.dn }))}
               showSearch
               filterOption={(input, option) =>
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())

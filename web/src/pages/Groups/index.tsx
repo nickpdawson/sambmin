@@ -70,6 +70,10 @@ export default function Groups() {
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Group | null>(null);
   const [renameForm] = Form.useForm();
+  const [moveTarget, setMoveTarget] = useState<Group | null>(null);
+  const [moveDest, setMoveDest] = useState<string | null>(null);
+  const [moveLoading, setMoveLoading] = useState(false);
+  const [ouOptions, setOUOptions] = useState<{ value: string; label: string }[]>([]);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [selectedMemberDn, setSelectedMemberDn] = useState<string | null>(null);
   const [addingMember, setAddingMember] = useState(false);
@@ -114,7 +118,39 @@ export default function Groups() {
       renameForm.setFieldsValue({ newName: record.name });
       return;
     }
+
+    if (action === 'move') {
+      setMoveTarget(record);
+      return;
+    }
   }, [loadGroups, renameForm]);
+
+  // Lazy-load OU options the first time a move is requested
+  useEffect(() => {
+    if (!moveTarget || ouOptions.length > 0) return;
+    api.get<{ ous: { dn: string; name: string }[] }>('/ous')
+      .then((data) => setOUOptions(
+        (data.ous || []).map((ou) => ({ value: ou.dn, label: ou.dn }))
+      ))
+      .catch(() => {});
+  }, [moveTarget, ouOptions.length]);
+
+  const handleMoveGroup = useCallback(async () => {
+    if (!moveTarget || !moveDest) return;
+    setMoveLoading(true);
+    try {
+      await api.post(`/groups/${encodeURIComponent(moveTarget.dn)}/move`, { targetOu: moveDest });
+      notification.success({ message: `${moveTarget.name} moved` });
+      setMoveTarget(null);
+      setMoveDest(null);
+      loadGroups();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Move failed';
+      Modal.error({ title: 'Move group failed', content: msg });
+    } finally {
+      setMoveLoading(false);
+    }
+  }, [moveTarget, moveDest, loadGroups]);
 
   const handleRenameGroup = useCallback(async () => {
     if (!renameTarget) return;
@@ -302,6 +338,7 @@ export default function Groups() {
         const adminItems = isAdmin ? [
           { key: 'edit', label: 'Edit' },
           { key: 'rename', label: 'Rename' },
+          { key: 'move', label: 'Move to OU' },
           { type: 'divider' as const },
           { key: 'delete', label: 'Delete Group', danger: true },
         ] : [];
@@ -591,6 +628,34 @@ export default function Groups() {
             <Input />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Move Group Modal */}
+      <Modal
+        title={`Move Group — ${moveTarget?.name || ''}`}
+        open={!!moveTarget}
+        onCancel={() => { setMoveTarget(null); setMoveDest(null); }}
+        onOk={handleMoveGroup}
+        okText="Move"
+        okButtonProps={{ loading: moveLoading, disabled: !moveDest }}
+      >
+        <p style={{ marginTop: 0 }}>
+          Current location:{' '}
+          <Text code style={{ fontSize: 12 }}>
+            {moveTarget?.dn.split(',').slice(1).join(',')}
+          </Text>
+        </p>
+        <Select
+          placeholder="Select destination OU or container..."
+          style={{ width: '100%' }}
+          value={moveDest}
+          onChange={setMoveDest}
+          options={ouOptions.filter((o) => o.value !== moveTarget?.dn.split(',').slice(1).join(','))}
+          showSearch
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+        />
       </Modal>
 
       {/* Add Member Modal */}

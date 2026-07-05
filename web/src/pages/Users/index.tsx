@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Button, Input, Space, Tag, Tabs, Tooltip, Dropdown, Badge, Typography,
-  notification, Modal, Form,
+  notification, Modal, Form, Select,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined,
@@ -93,6 +93,10 @@ export default function Users() {
   const [renameForm] = Form.useForm();
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [moveTarget, setMoveTarget] = useState<User | null>(null);
+  const [moveDest, setMoveDest] = useState<string | null>(null);
+  const [moveLoading, setMoveLoading] = useState(false);
+  const [ouOptions, setOUOptions] = useState<{ value: string; label: string }[]>([]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -127,6 +131,11 @@ export default function Users() {
     if (action === 'rename') {
       setRenameTarget(record);
       renameForm.setFieldsValue({ newName: record.displayName || record.samAccountName });
+      return;
+    }
+
+    if (action === 'move') {
+      setMoveTarget(record);
       return;
     }
 
@@ -187,6 +196,33 @@ export default function Users() {
       }
     }
   }, [renameTarget, renameForm, loadUsers]);
+
+  // Lazy-load OU options the first time a move is requested
+  useEffect(() => {
+    if (!moveTarget || ouOptions.length > 0) return;
+    api.get<{ ous: { dn: string; name: string }[] }>('/ous')
+      .then((data) => setOUOptions(
+        (data.ous || []).map((ou) => ({ value: ou.dn, label: ou.dn }))
+      ))
+      .catch(() => {});
+  }, [moveTarget, ouOptions.length]);
+
+  const handleMoveUser = useCallback(async () => {
+    if (!moveTarget || !moveDest) return;
+    setMoveLoading(true);
+    try {
+      await api.post(`/users/${encodeURIComponent(moveTarget.dn)}/move`, { targetOu: moveDest });
+      notification.success({ message: `${moveTarget.displayName || moveTarget.samAccountName} moved` });
+      setMoveTarget(null);
+      setMoveDest(null);
+      loadUsers();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Move failed';
+      Modal.error({ title: 'Move user failed', content: msg });
+    } finally {
+      setMoveLoading(false);
+    }
+  }, [moveTarget, moveDest, loadUsers]);
 
   const handleDeleteUser = useCallback(async () => {
     if (!deleteTarget) return;
@@ -312,6 +348,7 @@ export default function Users() {
         const adminItems = isAdmin ? [
           { key: 'edit', label: 'Edit' },
           { key: 'rename', label: 'Rename' },
+          { key: 'move', label: 'Move to OU' },
           { key: 'reset', label: 'Reset Password' },
           { type: 'divider' as const },
           ...(record.lockedOut ? [{ key: 'unlock', label: 'Unlock Account' }] : []),
@@ -516,6 +553,34 @@ export default function Users() {
             <Input />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Move User Modal */}
+      <Modal
+        title={`Move User — ${moveTarget?.displayName || moveTarget?.samAccountName || ''}`}
+        open={!!moveTarget}
+        onCancel={() => { setMoveTarget(null); setMoveDest(null); }}
+        onOk={handleMoveUser}
+        okText="Move"
+        okButtonProps={{ loading: moveLoading, disabled: !moveDest }}
+      >
+        <p style={{ marginTop: 0 }}>
+          Current location:{' '}
+          <Text code style={{ fontSize: 12 }}>
+            {moveTarget?.dn.split(',').slice(1).join(',')}
+          </Text>
+        </p>
+        <Select
+          placeholder="Select destination OU or container..."
+          style={{ width: '100%' }}
+          value={moveDest}
+          onChange={setMoveDest}
+          options={ouOptions.filter((o) => o.value !== moveTarget?.dn.split(',').slice(1).join(','))}
+          showSearch
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+        />
       </Modal>
 
       {/* Delete User Confirmation Modal */}

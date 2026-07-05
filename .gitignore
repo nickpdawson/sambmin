@@ -69,3 +69,6 @@ sambmin-security.sh
 /sambmin
 /sambmin-linux
 api/sambmin-freebsd
+
+# Cross-compiled release binaries
+api/sambmin-*

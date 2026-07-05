@@ -130,8 +130,9 @@ type createUserRequest struct {
 	Mail               string `json:"mail"`
 	Department         string `json:"department"`
 	Title              string `json:"title"`
-	OU                 string `json:"ou"`
-	MustChangePassword bool   `json:"mustChangePassword"`
+	OU                 string   `json:"ou"`
+	Groups             []string `json:"groups"`
+	MustChangePassword bool     `json:"mustChangePassword"`
 }
 
 func handleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -176,7 +177,11 @@ func handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		args = append(args, "--job-title", req.Title)
 	}
 	if req.OU != "" {
-		args = append(args, "--userou", req.OU)
+		// --userou wants an RDN sequence relative to the base DN; the
+		// frontend sends full DNs, so strip the base-DN suffix if present.
+		if ou := relativeToBase(req.OU, baseDN()); ou != "" {
+			args = append(args, "--userou", ou)
+		}
 	}
 	if req.MustChangePassword {
 		args = append(args, "--must-change-at-next-login")
@@ -192,11 +197,60 @@ func handleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 	posixApplied := applyPosixToNewUser(r.Context(), sess, req.Username)
 
+	// Add initial group memberships. Failures don't fail the create — the
+	// user already exists — but are reported back so the UI can surface them.
+	var groupsFailed []string
+	for _, g := range req.Groups {
+		if g == "" {
+			continue
+		}
+		if _, err := runSambaTool(r.Context(), sess, "group", "addmembers", g, req.Username); err != nil {
+			slog.Error("add new user to group failed", "username", req.Username, "group", g, "actor", sess.Username, "error", err)
+			groupsFailed = append(groupsFailed, g)
+		}
+	}
+
 	respondJSON(w, http.StatusCreated, map[string]any{
 		"success":      true,
 		"username":     req.Username,
 		"posixApplied": posixApplied,
+		"groupsFailed": groupsFailed,
 	})
+}
+
+// --- User Move ---
+
+func handleMoveUser(w http.ResponseWriter, r *http.Request) {
+	sess := requireSession(w, r)
+	if sess == nil {
+		return
+	}
+
+	dn := r.PathValue("dn")
+	username, err := samAccountNameFromDN(r.Context(), dn)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "could not determine username from DN")
+		return
+	}
+
+	var req moveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.TargetOU == "" {
+		respondError(w, http.StatusBadRequest, "target OU required")
+		return
+	}
+
+	if _, err := runSambaTool(r.Context(), sess, "user", "move", username, req.TargetOU); err != nil {
+		slog.Error("user move failed", "username", username, "targetOU", req.TargetOU, "actor", sess.Username, "error", err)
+		respondSafeError(w, http.StatusInternalServerError, "user move failed", err)
+		return
+	}
+
+	slog.Info("user moved", "username", username, "targetOU", req.TargetOU, "actor", sess.Username)
+	respondJSON(w, http.StatusOK, map[string]any{"success": true, "username": username})
 }
 
 // applyPosixToNewUser sets uidNumber/gidNumber/unixHomeDirectory/loginShell
@@ -611,6 +665,32 @@ func handleRenameUser(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("user renamed", "username", username, "newName", req.NewName, "actor", sess.Username)
 	respondJSON(w, http.StatusOK, map[string]any{"success": true, "oldName": username, "newName": req.NewName})
+}
+
+// baseDN returns the configured directory base DN, or "" when unset.
+func baseDN() string {
+	if handlerConfig == nil {
+		return ""
+	}
+	return handlerConfig.BaseDN
+}
+
+// relativeToBase strips the base-DN suffix from a full DN, returning the
+// RDN sequence that samba-tool's --userou/--groupou flags expect (samba
+// appends the domain DN itself, so a full DN would be doubled). Returns ""
+// when dn IS the base DN; returns dn unchanged when it doesn't end in base.
+func relativeToBase(dn, base string) string {
+	dn, base = strings.TrimSpace(dn), strings.TrimSpace(base)
+	if base == "" || len(dn) <= len(base) {
+		if strings.EqualFold(dn, base) {
+			return ""
+		}
+		return dn
+	}
+	if strings.EqualFold(dn[len(dn)-len(base):], base) && dn[len(dn)-len(base)-1] == ',' {
+		return dn[:len(dn)-len(base)-1]
+	}
+	return dn
 }
 
 // cnFromDN extracts the CN value from a distinguished name.
