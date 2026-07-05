@@ -68,6 +68,15 @@ Four roles are derived from AD group membership:
 
 Role checks happen at the route level — write endpoints are wrapped with `RequireRole` middleware that returns 403 before the handler executes.
 
+## samba-tool Integration Notes
+
+Hard-won details of driving `samba-tool` programmatically. Each of these caused a real bug before it was encoded here:
+
+- **Member and move targets are sAMAccountNames, not CNs.** `samba-tool group addmembers`, `user move`, and `group move` resolve objects by account name. A user DN's leading CN is usually the *display name* ("Jane Smith"), which fails with `Unable to find`. Handlers resolve DNs to sAMAccountName via LDAP first (`samAccountNameFromDN`), falling back to the CN only when LDAP is unavailable.
+- **`--userou`/`--groupou` take base-DN-relative RDNs.** samba-tool appends the domain DN itself, so passing a full DN produces a doubled suffix (`OU=X,DC=a,DC=b,DC=a,DC=b`) and fails. `relativeToBase` strips the base-DN suffix before invoking samba-tool. The `move` subcommands, by contrast, normalize and accept either form.
+- **OUs cannot be created inside CN= containers.** AD's schema forbids `organizationalUnit` as a child of containers like `CN=Users` or `CN=Computers` (`LDAP_NAMING_VIOLATION`). The API rejects CN= parents with a 400 up front; users, groups, and computers may live in containers, only OUs are restricted.
+- **`drs`, `domain`, and `dns` subcommands use DCE/RPC, not LDAP.** They do not accept `-H ldap://...`; `runSambaTool` skips the flag for those three and appends it for everything else.
+
 ## DNS Backend Abstraction
 
 Samba AD supports two DNS backends:

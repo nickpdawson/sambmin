@@ -12,11 +12,11 @@ Built for organizations running Samba AD as their directory service, Sambmin rep
 
 ## Features
 
-- **Users** — Create, modify, enable/disable, unlock, reset passwords, rename, move between OUs
-- **Groups** — Create, modify membership, rename, delete; supports all AD group types
+- **Users** — Create (in any OU, with initial group memberships), modify, enable/disable, unlock, reset passwords, rename, move between OUs
+- **Groups** — Create, modify membership, rename, move, delete; supports all AD group types
 - **Computers** — List, create, delete, move; shows OS info and last logon
 - **Contacts** — Full CRUD with move and rename support
-- **Organizational Units** — Tree browser with drag-and-drop-style navigation, create/delete
+- **Organizational Units** — Tree browser with drag-and-drop-style navigation, create/move/delete
 - **DNS Management** — Zone and record management, SRV validator, cross-DC consistency checks; supports both Samba internal DNS and BIND9 DLZ backends
 - **GPO Browsing** — List, inspect, link/unlink Group Policy Objects to OUs
 - **Replication** — Topology visualization, per-partition status, force sync (requires Domain Admin login)
@@ -56,7 +56,7 @@ Sambmin is in **public beta**. The core directory management features are functi
 - **Write operations** require `samba-tool` and Python 3.11+ installed on the server; without them, Sambmin operates in read-only mode
 - **SPN search** currently requires an account name (e.g., `webserver$`), not an SPN service name
 
-**Tested against:** Samba 4.20 on FreeBSD 14.x with Heimdal Kerberos. Other Samba versions and MIT Kerberos should work but are not yet verified — feedback welcome.
+**Tested against:** Samba 4.20 on FreeBSD 15.x with Heimdal Kerberos, and Samba 4.23 on FreeBSD 15.x with MIT Kerberos and the SAMBA_INTERNAL DNS backend. Other combinations should work but are not yet verified — feedback welcome.
 
 ## Quick Start
 
