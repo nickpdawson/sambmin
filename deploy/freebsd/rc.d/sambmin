@@ -58,9 +58,11 @@ sambmin_start()
 
     install -o ${sambmin_user} -g ${sambmin_group} -m 0640 /dev/null ${sambmin_logfile} 2>/dev/null
 
-    /usr/sbin/daemon -f -p ${pidfile} -u ${sambmin_user} \
+    # daemon -f closes stdio before exec, so the shell redirect never captured
+    # anything; -o is how the child's output reaches the logfile.
+    /usr/sbin/daemon -f -o ${sambmin_logfile} -p ${pidfile} -u ${sambmin_user} \
         /usr/bin/env SAMBMIN_BIND_PW="${SAMBMIN_BIND_PW}" SAMBMIN_CONFIG="${sambmin_config}" \
-        ${command} >> ${sambmin_logfile} 2>&1
+        ${command}
 
     sleep 1
     if [ -f "${pidfile}" ] && kill -0 $(cat "${pidfile}") 2>/dev/null; then
