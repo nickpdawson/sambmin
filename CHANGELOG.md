@@ -2,6 +2,12 @@
 
 All notable changes to Sambmin will be documented in this file.
 
+## [0.1.0-beta.7] - 2026-07-06
+
+### Fixed
+- **Password Policies page was blank (domain default policy and PSOs)** — `runSambaTool` skipped `-H ldap://localhost` for *all* `samba-tool domain` subcommands on the assumption they were DCE/RPC. But `domain passwordsettings` is LDAP-capable, and without `-H` samba-tool opens `/var/db/samba4/private/sam.ldb` directly — which requires root, so every policy read/write failed with `Permission denied` under the service user. The skip list is now precise (extracted to `sambaToolWantsLDAPURL`): only `drs`, `dns`, and non-`passwordsettings` `domain` subcommands (e.g. `exportkeytab`, which genuinely reads the local SAM) omit `-H`. Affects the domain default policy viewer/editor, all PSO operations, effective-policy lookup, and the password tester.
+- **Password policy load failures now render a persistent error with a Retry button** in the Domain Default Policy card, instead of a transient toast followed by a permanently blank card.
+
 ## [0.1.0-beta.6] - 2026-07-05
 
 ### Fixed

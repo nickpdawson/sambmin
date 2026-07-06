@@ -51,6 +51,7 @@ export default function PasswordPolicyPage() {
   const [policy, setPolicy] = useState<PasswordPolicy | null>(null);
   const [psos, setPsos] = useState<PSO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editForm] = Form.useForm();
   const [psoModalOpen, setPsoModalOpen] = useState(false);
@@ -67,12 +68,13 @@ export default function PasswordPolicyPage() {
 
   const loadPolicy = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.get<PasswordPolicy>('/password-policy');
       setPolicy(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load';
-      notification.error({ message: 'Load Failed', description: message });
+      setLoadError(message);
     } finally {
       setLoading(false);
     }
@@ -242,6 +244,15 @@ export default function PasswordPolicyPage() {
           label: 'Domain Default Policy',
           children: (
             <Card loading={loading}>
+              {loadError && !policy && (
+                <Alert
+                  type="error"
+                  showIcon
+                  message="Failed to load domain password policy"
+                  description={loadError}
+                  action={<Button size="small" onClick={loadPolicy}>Retry</Button>}
+                />
+              )}
               {policy && !editing && (
                 <>
                   <Descriptions

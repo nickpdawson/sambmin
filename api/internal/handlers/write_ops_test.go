@@ -3935,3 +3935,73 @@ Outgoing Delegations:
 		t.Errorf("expected 0 services, got %d", len(info.AllowedServices))
 	}
 }
+
+func TestSambaToolWantsLDAPURL(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{"user create", []string{"user", "create", "jdoe", "pw"}, true},
+		{"group addmembers", []string{"group", "addmembers", "g", "jdoe"}, true},
+		{"ou move", []string{"ou", "move", "OU=A", "OU=B"}, true},
+		{"drs showrepl", []string{"drs", "showrepl"}, false},
+		{"dns zonecreate", []string{"dns", "zonecreate", "dc1", "z"}, false},
+		{"domain exportkeytab", []string{"domain", "exportkeytab", "/tmp/kt"}, false},
+		{"domain bare", []string{"domain"}, false},
+		{"domain passwordsettings show", []string{"domain", "passwordsettings", "show"}, true},
+		{"domain passwordsettings pso list", []string{"domain", "passwordsettings", "pso", "list"}, true},
+		{"empty", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sambaToolWantsLDAPURL(tt.args); got != tt.want {
+				t.Errorf("sambaToolWantsLDAPURL(%v) = %v, want %v", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParsePasswordPolicyLiveOutput(t *testing.T) {
+	// Verbatim output of `samba-tool domain passwordsettings show` (samba 4.23)
+	input := `Password information for domain 'DC=alpinenet,DC=us'
+
+Password complexity: on
+Store plaintext passwords: off
+Password history length: 24
+Minimum password length: 7
+Minimum password age (days): 1
+Maximum password age (days): 42
+Account lockout duration (mins): 30
+Account lockout threshold (attempts): 0
+Reset account lockout after (mins): 30`
+
+	p := parsePasswordPolicy(input)
+	if !p.Complexity {
+		t.Error("complexity should be on")
+	}
+	if p.StorePlaintext {
+		t.Error("store plaintext should be off")
+	}
+	if p.HistoryLength != 24 {
+		t.Errorf("history = %d, want 24", p.HistoryLength)
+	}
+	if p.MinLength != 7 {
+		t.Errorf("minLength = %d, want 7", p.MinLength)
+	}
+	if p.MinAge != "1" {
+		t.Errorf("minAge = %q, want \"1\"", p.MinAge)
+	}
+	if p.MaxAge != "42" {
+		t.Errorf("maxAge = %q, want \"42\"", p.MaxAge)
+	}
+	if p.LockoutDuration != "30" {
+		t.Errorf("lockoutDuration = %q, want \"30\"", p.LockoutDuration)
+	}
+	if p.LockoutThreshold != 0 {
+		t.Errorf("lockoutThreshold = %d, want 0", p.LockoutThreshold)
+	}
+	if p.LockoutWindow != "30" {
+		t.Errorf("lockoutWindow = %q, want \"30\"", p.LockoutWindow)
+	}
+}

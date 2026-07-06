@@ -21,6 +21,25 @@ var sambaTool = "samba-tool"
 // sambaToolTimeout is the maximum duration for any samba-tool invocation.
 const sambaToolTimeout = 15 * time.Second
 
+// sambaToolWantsLDAPURL reports whether a samba-tool invocation should get
+// -H ldap://localhost appended. DRS and DNS commands use DCE/RPC, not LDAP,
+// as do domain subcommands other than passwordsettings (e.g. exportkeytab
+// reads the local SAM). domain passwordsettings MUST get -H: without it,
+// samba-tool opens sam.ldb directly, which requires root and fails with
+// "Permission denied" under the service user.
+func sambaToolWantsLDAPURL(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	switch args[0] {
+	case "drs", "dns":
+		return false
+	case "domain":
+		return len(args) > 1 && args[1] == "passwordsettings"
+	}
+	return true
+}
+
 // runSambaTool executes a samba-tool command with the given user's credentials.
 func runSambaTool(ctx context.Context, sess *auth.Session, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, sambaToolTimeout)
@@ -32,8 +51,7 @@ func runSambaTool(ctx context.Context, sess *auth.Session, args ...string) (stri
 		return "", fmt.Errorf("get session credentials: %w", err)
 	}
 
-	// DRS, domain, and DNS commands use DCE/RPC, not LDAP — skip -H flag for them
-	if len(args) > 0 && args[0] != "drs" && args[0] != "domain" && args[0] != "dns" {
+	if sambaToolWantsLDAPURL(args) {
 		args = append(args, "-H", "ldap://localhost")
 	}
 	args = append(args, "-U", fmt.Sprintf("%s%%%s", sess.Username, password))
