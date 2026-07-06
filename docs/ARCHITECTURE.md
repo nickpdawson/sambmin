@@ -75,7 +75,7 @@ Hard-won details of driving `samba-tool` programmatically. Each of these caused 
 - **Member and move targets are sAMAccountNames, not CNs.** `samba-tool group addmembers`, `user move`, and `group move` resolve objects by account name. A user DN's leading CN is usually the *display name* ("Jane Smith"), which fails with `Unable to find`. Handlers resolve DNs to sAMAccountName via LDAP first (`samAccountNameFromDN`), falling back to the CN only when LDAP is unavailable.
 - **`--userou`/`--groupou` take base-DN-relative RDNs.** samba-tool appends the domain DN itself, so passing a full DN produces a doubled suffix (`OU=X,DC=a,DC=b,DC=a,DC=b`) and fails. `relativeToBase` strips the base-DN suffix before invoking samba-tool. The `move` subcommands, by contrast, normalize and accept either form.
 - **OUs cannot be created inside CN= containers.** AD's schema forbids `organizationalUnit` as a child of containers like `CN=Users` or `CN=Computers` (`LDAP_NAMING_VIOLATION`). The API rejects CN= parents with a 400 up front; users, groups, and computers may live in containers, only OUs are restricted.
-- **`drs`, `domain`, and `dns` subcommands use DCE/RPC, not LDAP.** They do not accept `-H ldap://...`; `runSambaTool` skips the flag for those three and appends it for everything else.
+- **The `-H ldap://` decision is per-subcommand, not per-command-group.** `drs` and `dns` use DCE/RPC and reject `-H ldap://...`. Within `domain`, it varies: `exportkeytab` reads the local SAM (no `-H`), while `passwordsettings` is LDAP-capable and *requires* `-H` — without it, samba-tool opens `sam.ldb` directly, which needs root and fails with `Permission denied` under the service user. `sambaToolWantsLDAPURL` encodes the rule.
 
 ## DNS Backend Abstraction
 
