@@ -5,6 +5,7 @@ import {
 } from 'antd';
 import { UserOutlined, LockOutlined, ReloadOutlined } from '@ant-design/icons';
 import { api } from '../../api/client';
+import { useAuth } from '../../hooks/useAuth';
 
 const { Text } = Typography;
 
@@ -41,6 +42,8 @@ interface GroupOption { dn: string; name: string; samAccountName: string }
 
 export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUserDrawerProps) {
   const [form] = Form.useForm();
+  const { user } = useAuth();
+  const domain = user?.domain || '';
   const [loading, setLoading] = useState(false);
   const [ouOptions, setOUOptions] = useState<{ value: string; label: string }[]>([]);
   const [groupOptions, setGroupOptions] = useState<{ value: string; label: string }[]>([]);
@@ -73,8 +76,7 @@ export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUse
       form.setFieldsValue({
         samAccountName: username,
         displayName: display,
-        mail: `${username}@example.com`,
-        userPrincipalName: `${username}@example.com`,
+        ...(domain ? { mail: `${username}@${domain}` } : {}),
       });
     }
   };
@@ -181,12 +183,12 @@ export default function CreateUserDrawer({ open, onClose, onSuccess }: CreateUse
             rules={[{ required: true, message: 'Required' }]}
             style={{ flex: 1 }}
           >
-            <Input placeholder="jsmith" addonAfter="@example.com" />
+            <Input placeholder="jsmith" addonAfter={domain ? `@${domain}` : undefined} />
           </Form.Item>
         </Space>
 
         <Form.Item name="mail" label="Email">
-          <Input placeholder="jsmith@example.com" />
+          <Input placeholder={domain ? `jsmith@${domain}` : 'jsmith@example.com'} />
         </Form.Item>
 
         {/* Credentials */}

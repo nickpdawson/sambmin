@@ -37,6 +37,7 @@ type loginResponse struct {
 	DisplayName string   `json:"displayName"`
 	DN          string   `json:"dn"`
 	Groups      []string `json:"groups"`
+	Domain      string   `json:"domain"`
 }
 
 func handleLoginImpl(w http.ResponseWriter, r *http.Request) {
@@ -114,6 +115,7 @@ func handleLoginImpl(w http.ResponseWriter, r *http.Request) {
 		Username: result.Username,
 		DN:       result.DN,
 		Groups:   result.Groups,
+		Domain:   domainFromBaseDN(baseDN()),
 	})
 }
 
@@ -151,6 +153,7 @@ func handleMeImpl(w http.ResponseWriter, r *http.Request) {
 		"dn":       sess.DN,
 		"groups":   sess.Groups,
 		"expires":  sess.Expires.Format(time.RFC3339),
+		"domain":   domainFromBaseDN(baseDN()),
 	})
 }
 

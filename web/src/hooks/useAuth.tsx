@@ -6,6 +6,7 @@ interface User {
   dn: string;
   groups: string[];
   expires?: string;
+  domain?: string;
 }
 
 // Groups that grant admin access to the full management UI

@@ -2,6 +2,11 @@
 
 All notable changes to Sambmin will be documented in this file.
 
+## [0.1.0-beta.8] - 2026-07-06
+
+### Fixed
+- **Create User pre-filled `username@example.com` instead of the real domain** — the auto-name handler hardcoded `example.com` into the email field (which *was sent* to the server on create), and the Username field displayed a literal `@example.com` suffix. The login and `/auth/me` responses now include a `domain` field derived from the configured base DN (`DC=alpinenet,DC=us` → `alpinenet.us`); the create-user drawer uses it for the `@domain` username suffix, the auto-filled email address, and the email placeholder. The dead `userPrincipalName` form value (never rendered or sent — samba-tool derives the UPN from the domain) was dropped.
+
 ## [0.1.0-beta.7] - 2026-07-06
 
 ### Fixed
