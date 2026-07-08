@@ -23,6 +23,7 @@ import AuditLog from './pages/AuditLog';
 import Settings from './pages/Settings';
 import Search from './pages/Search';
 import PasswordPolicy from './pages/PasswordPolicy';
+import Delegation from './pages/Delegation';
 import type { ReactNode } from 'react';
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -81,6 +82,7 @@ export default function App() {
                 <Route path="/schema" element={<Schema />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/password-policy" element={<PasswordPolicy />} />
+                <Route path="/delegation" element={<Delegation />} />
                 <Route path="/audit" element={<AuditLog />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>

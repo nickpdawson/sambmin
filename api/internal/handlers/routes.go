@@ -192,6 +192,12 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client, sto
 	protected.HandleFunc("GET /api/password-policy/user/{username}", handleGetEffectivePolicy)
 	protected.HandleFunc("POST /api/password-policy/test", handleTestPassword)
 
+	// Delegation of control (AD object ACLs / dsacl) — high privilege, admin only
+	protected.Handle("GET /api/dsacl/templates", requireRole(auth.RoleAdmin, handleListDelegationTemplates))
+	protected.Handle("GET /api/dsacl", requireRole(auth.RoleAdmin, handleGetDSACL))
+	protected.Handle("POST /api/dsacl/apply", requireRole(auth.RoleAdmin, handleApplyDSACL))
+	protected.Handle("POST /api/dsacl/remove", requireRole(auth.RoleAdmin, handleRemoveDSACL))
+
 	// Settings (real persistence via settings.json overlay)
 	protected.HandleFunc("GET /api/settings", handleGetSettings)
 	protected.Handle("PUT /api/settings/connection", requireRole(auth.RoleAdmin, handleUpdateConnection))

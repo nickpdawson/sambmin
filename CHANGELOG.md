@@ -2,6 +2,15 @@
 
 All notable changes to Sambmin will be documented in this file.
 
+## [0.1.0-beta.10] - 2026-07-07
+
+### Added
+- **Delegation of Control** — a new admin page for granting scoped AD rights on an OU (or the whole domain) to users and groups, backed by `samba-tool dsacl`. Pick a target, multi-select trustees, and multi-select capability templates; every trustee×template pair is applied in one action. Built for standing up service accounts, bind/sync accounts, OU administrators, and help-desk delegates.
+  - Capability templates: reset user passwords; create/delete/manage user accounts; manage group membership; create/delete/manage groups; create/delete computer accounts (domain join); read all objects (read-only bind account); full control (OU admin); and the two directory-replication rights (`get-changes`, `get-changes-all`) for DirSync/password-sync bind accounts.
+  - Object delegations are expressed as SDDL ACEs with the trustee's resolved objectSid; the replication rights use `dsacl --car` (the only family samba exposes by name). High-privilege templates prompt for confirmation, and replication rights warn when the target isn't the domain root.
+  - The page lists the delegations explicitly set on the selected object (inherited defaults and built-in ACEs are filtered out), rendered as human-readable capabilities with per-delegation removal. Generic-All's canonicalization into two stored ACEs is recognized and shown as a single "Full control" grant.
+  - New endpoints (admin only): `GET /api/dsacl/templates`, `GET /api/dsacl?objectDn=`, `POST /api/dsacl/apply`, `POST /api/dsacl/remove`.
+
 ## [0.1.0-beta.9] - 2026-07-07
 
 ### Added

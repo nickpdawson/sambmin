@@ -24,6 +24,7 @@ import {
   LogoutOutlined,
   FileSearchOutlined,
   LockOutlined,
+  SolutionOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import type { MenuProps } from 'antd';
@@ -104,6 +105,7 @@ function getMenuItems(isAdmin: boolean): MenuItem[] {
       children: [
         { key: '/gpo', icon: <SafetyCertificateOutlined />, label: 'Group Policy' },
         { key: '/password-policy', icon: <LockOutlined />, label: 'Password Policies' },
+        { key: '/delegation', icon: <SolutionOutlined />, label: 'Delegation' },
         { key: '/kerberos', icon: <KeyOutlined />, label: 'Kerberos' },
         { key: '/fsmo', icon: <CrownOutlined />, label: 'FSMO Roles' },
         { key: '/schema', icon: <DatabaseOutlined />, label: 'Schema' },
@@ -134,6 +136,7 @@ const pathLabels: Record<string, string> = {
   '/replication': 'Replication',
   '/gpo': 'Group Policy',
   '/password-policy': 'Password Policies',
+  '/delegation': 'Delegation',
   '/kerberos': 'Kerberos',
   '/fsmo': 'FSMO Roles',
   '/schema': 'Schema',
