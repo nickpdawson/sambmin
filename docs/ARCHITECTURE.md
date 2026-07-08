@@ -77,6 +77,15 @@ Hard-won details of driving `samba-tool` programmatically. Each of these caused 
 - **OUs cannot be created inside CN= containers.** AD's schema forbids `organizationalUnit` as a child of containers like `CN=Users` or `CN=Computers` (`LDAP_NAMING_VIOLATION`). The API rejects CN= parents with a 400 up front; users, groups, and computers may live in containers, only OUs are restricted.
 - **The `-H ldap://` decision is per-subcommand, not per-command-group.** `drs` and `dns` use DCE/RPC and reject `-H ldap://...`. Within `domain`, it varies: `exportkeytab` reads the local SAM (no `-H`), while `passwordsettings` is LDAP-capable and *requires* `-H` — without it, samba-tool opens `sam.ldb` directly, which needs root and fails with `Permission denied` under the service user. `sambaToolWantsLDAPURL` encodes the rule.
 
+## Delegation of Control (dsacl)
+
+Delegation is driven by `samba-tool dsacl get/set/delete`, and the interface has sharp edges worth recording:
+
+- **`--car` only covers replication rights.** Its accepted values are the directory-replication / FSMO control-access rights (`get-changes`, `get-changes-all`, `repl-sync`, …) — *not* the delegation rights an admin usually wants. Everything else (reset password, create/delete objects, manage membership, read/full control) must be expressed as raw **SDDL** via `--sddl`. The `--car` path takes the trustee as a DN (`--trusteedn`); the SDDL path embeds the trustee as a **SID**, so Sambmin resolves trustee DN → `objectSid` (decoding the binary SID) before building the ACE.
+- **Generic rights are canonicalized on store.** A container-inheritable Generic All (`(A;CI;GA;;;<sid>)`) is written back as **two** ACEs: an inherit-only `(A;CIIO;GA;;;<sid>)` for descendants plus the object's own expanded specific mask `(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;<sid>)`. Removal must delete the *stored* forms, not the submitted one — so the UI removes by the exact ACE strings returned from `get`, and both stored forms are attributed back to the single "Full control" template. Specific-rights ACEs (reset password, read-only, membership) round-trip unchanged.
+- **"Delegations" = explicit ACEs granted to domain principals.** A DACL is full of inherited ACEs (flag `ID`) and non-inherited class defaults for well-known principals (SYSTEM, Domain Admins). Sambmin's delegation view shows only ACEs that are *not* inherited **and** whose trustee is a real domain principal (`S-1-5-21-…`), which cleanly excludes both noise sources.
+- **The only colons in an SDDL string are the `O:`/`G:`/`D:`/`S:` component markers.** SIDs use hyphens and ACE fields use semicolons, so the DACL can be isolated by splitting on those markers; ACEs are then split on balanced parentheses (honoring nesting so conditional ACEs don't split wrong).
+
 ## DNS Backend Abstraction
 
 Samba AD supports two DNS backends:

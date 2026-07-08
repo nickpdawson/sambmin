@@ -22,6 +22,7 @@ Built for organizations running Samba AD as their directory service, Sambmin rep
 - **Replication** — Topology visualization, per-partition status, force sync (requires Domain Admin login)
 - **Kerberos** — Policy viewer, service account browser, keytab export, SPN and delegation management
 - **Password Policy** — Domain-wide policy editor, Fine-Grained Password Policies (PSOs)
+- **Delegation of Control** — Grant scoped AD rights (reset passwords, manage users/groups/computers, read-only bind, full control, directory replication) to users and groups on an OU or the whole domain; multi-select trustees × capabilities, with per-delegation removal
 - **Schema Browser** — Explore AD schema classes and attributes
 - **Global Search** — Full-directory LDAP search with saved queries
 - **Dashboard** — DC health, object counts, recent activity across all DCs
