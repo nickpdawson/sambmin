@@ -50,6 +50,7 @@ interface User {
   enabled: boolean;
   lockedOut: boolean;
   passwordExpired: boolean;
+  passwordNeverExpires: boolean;
   accountExpires: string;
   pwdLastSet: string;
   badPwdCount: number;

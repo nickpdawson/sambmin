@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nickdawson/sambmin/internal/config"
 	"github.com/nickdawson/sambmin/internal/models"
@@ -4003,5 +4004,45 @@ Reset account lockout after (mins): 30`
 	}
 	if p.LockoutWindow != "30" {
 		t.Errorf("lockoutWindow = %q, want \"30\"", p.LockoutWindow)
+	}
+}
+
+func TestCeilDays(t *testing.T) {
+	tests := []struct {
+		name string
+		d    time.Duration
+		want int
+	}{
+		{"zero", 0, 0},
+		{"negative", -5 * time.Hour, 0},
+		{"one nanosecond", time.Nanosecond, 1},
+		{"one hour", time.Hour, 1},
+		{"exactly one day", 24 * time.Hour, 1},
+		{"one day plus 1ns", 24*time.Hour + time.Nanosecond, 2},
+		{"25 hours", 25 * time.Hour, 2},
+		{"two days", 48 * time.Hour, 2},
+		{"ten days", 240 * time.Hour, 10},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ceilDays(tt.d); got != tt.want {
+				t.Errorf("ceilDays(%v) = %d, want %d", tt.d, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseExpiryDate(t *testing.T) {
+	if _, err := parseExpiryDate("2026-12-31"); err != nil {
+		t.Errorf("YYYY-MM-DD should parse: %v", err)
+	}
+	if _, err := parseExpiryDate("2026-12-31T15:04:05Z"); err != nil {
+		t.Errorf("RFC3339 should parse: %v", err)
+	}
+	if _, err := parseExpiryDate("not-a-date"); err == nil {
+		t.Error("garbage should not parse")
+	}
+	if _, err := parseExpiryDate("12/31/2026"); err == nil {
+		t.Error("US-format date should not parse (not a supported layout)")
 	}
 }

@@ -219,11 +219,12 @@ func (c *Client) Search(ctx context.Context, baseDN string, scope int, filter st
 // ModifyAttributes updates LDAP attributes on an object, authenticated as the
 // specified user (not the service account). Creates a temporary connection
 // bound as the user for the modification.
-func (c *Client) ModifyAttributes(ctx context.Context, objectDN string, attrs map[string]string, userDN, userPassword string) error {
-	// Get a temporary connection to the primary DC, bound as the acting user
+// dialBound opens a temporary LDAPS connection to the primary DC and binds as
+// the acting user. Callers own the returned connection and must Close it.
+func (c *Client) dialBound(userDN, userPassword string) (*goldap.Conn, error) {
 	dcs := c.pool.DCs()
 	if len(dcs) == 0 {
-		return fmt.Errorf("no domain controllers available")
+		return nil, fmt.Errorf("no domain controllers available")
 	}
 
 	// Use the first DC (primary)
@@ -243,14 +244,22 @@ func (c *Client) ModifyAttributes(ctx context.Context, objectDN string, attrs ma
 		goldap.DialWithDialer(dialer),
 	)
 	if err != nil {
-		return fmt.Errorf("connect for modify: %w", err)
+		return nil, fmt.Errorf("connect for modify: %w", err)
+	}
+
+	if err := conn.Bind(userDN, userPassword); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("bind as user: %w", err)
+	}
+	return conn, nil
+}
+
+func (c *Client) ModifyAttributes(ctx context.Context, objectDN string, attrs map[string]string, userDN, userPassword string) error {
+	conn, err := c.dialBound(userDN, userPassword)
+	if err != nil {
+		return err
 	}
 	defer conn.Close()
-
-	// Bind as the acting user
-	if err := conn.Bind(userDN, userPassword); err != nil {
-		return fmt.Errorf("bind as user: %w", err)
-	}
 
 	// Build modify request
 	modReq := goldap.NewModifyRequest(objectDN, nil)
@@ -263,6 +272,56 @@ func (c *Client) ModifyAttributes(ctx context.Context, objectDN string, attrs ma
 	}
 
 	slog.Info("directory: attributes modified", "dn", objectDN, "attrs", len(attrs))
+	return nil
+}
+
+// ModifyUACFlag reads the current userAccountControl on objectDN and sets or
+// clears the given flag bit, writing the new value back. Read-modify-write is
+// done on a single bound connection so the value can't be exposed to a
+// concurrent-write race between two separate connections. There is no
+// samba-tool subcommand for the DONT_EXPIRE_PASSWORD bit, so this is the write
+// path for "password never expires".
+func (c *Client) ModifyUACFlag(ctx context.Context, objectDN string, flag uint32, enabled bool, userDN, userPassword string) error {
+	conn, err := c.dialBound(userDN, userPassword)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	searchReq := goldap.NewSearchRequest(
+		objectDN, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 10, false,
+		"(objectClass=*)", []string{ldap.AttrUAC}, nil,
+	)
+	res, err := conn.Search(searchReq)
+	if err != nil {
+		return fmt.Errorf("read userAccountControl for %s: %w", objectDN, err)
+	}
+	if len(res.Entries) == 0 {
+		return fmt.Errorf("object not found: %s", objectDN)
+	}
+
+	cur, err := strconv.ParseUint(res.Entries[0].GetAttributeValue(ldap.AttrUAC), 10, 32)
+	if err != nil {
+		return fmt.Errorf("parse userAccountControl for %s: %w", objectDN, err)
+	}
+
+	next := uint32(cur)
+	if enabled {
+		next |= flag
+	} else {
+		next &^= flag
+	}
+	if next == uint32(cur) {
+		return nil // no change needed
+	}
+
+	modReq := goldap.NewModifyRequest(objectDN, nil)
+	modReq.Replace(ldap.AttrUAC, []string{strconv.FormatUint(uint64(next), 10)})
+	if err := conn.Modify(modReq); err != nil {
+		return fmt.Errorf("modify userAccountControl %s: %w", objectDN, err)
+	}
+
+	slog.Info("directory: UAC flag modified", "dn", objectDN, "flag", flag, "enabled", enabled)
 	return nil
 }
 
@@ -353,11 +412,12 @@ func parseADTimestamp(s string) time.Time {
 	return time.Time{}
 }
 
-func parseUAC(entry *goldap.Entry) (enabled, lockedOut, passwordExpired bool) {
+func parseUAC(entry *goldap.Entry) (enabled, lockedOut, passwordExpired, passwordNeverExpires bool) {
 	uacStr := getAttr(entry, ldap.AttrUAC)
 	uac, _ := strconv.ParseInt(uacStr, 10, 32)
 
 	enabled = (uac & int64(ldap.UACAccountDisable)) == 0
+	passwordNeverExpires = (uac & int64(ldap.UACDontExpirePassword)) != 0
 
 	// Prefer computed lockout attribute (accurate, not cached)
 	computedStr := getAttr(entry, ldap.AttrUACComputed)
@@ -419,49 +479,50 @@ func cnFromDN(dn string) string {
 }
 
 func userFromEntry(entry *goldap.Entry) models.User {
-	enabled, lockedOut, pwdExpired := parseUAC(entry)
+	enabled, lockedOut, pwdExpired, pwdNeverExpires := parseUAC(entry)
 
 	badPwd, _ := strconv.Atoi(getAttr(entry, ldap.AttrBadPwdCount))
 
 	return models.User{
-		DN:              entry.DN,
-		SamAccountName:  getAttr(entry, ldap.AttrSAM),
-		DisplayName:     getAttr(entry, ldap.AttrDisplayName),
-		GivenName:       getAttr(entry, ldap.AttrGivenName),
-		Surname:         getAttr(entry, ldap.AttrSurname),
-		Email:           getAttr(entry, ldap.AttrEmail),
-		UPN:             getAttr(entry, ldap.AttrUPN),
-		Description:     getAttr(entry, ldap.AttrDescription),
-		Department:      getAttr(entry, ldap.AttrDepartment),
-		Title:           getAttr(entry, ldap.AttrTitle),
-		Company:         getAttr(entry, ldap.AttrCompany),
-		Manager:         getAttr(entry, ldap.AttrManager),
-		Office:          getAttr(entry, ldap.AttrPhysicalDelivery),
-		Street:          getAttr(entry, ldap.AttrStreetAddress),
-		City:            getAttr(entry, ldap.AttrCity),
-		State:           getAttr(entry, ldap.AttrState),
-		PostalCode:      getAttr(entry, ldap.AttrPostalCode),
-		Country:         getAttr(entry, ldap.AttrCountry),
-		Phone:           getAttr(entry, ldap.AttrTelephone),
-		Mobile:          getAttr(entry, ldap.AttrMobile),
-		ProfilePath:     getAttr(entry, ldap.AttrProfilePath),
-		ScriptPath:      getAttr(entry, ldap.AttrScriptPath),
-		HomeDrive:       getAttr(entry, ldap.AttrHomeDrive),
-		HomeDirectory:   getAttr(entry, ldap.AttrHomeDirectory),
-		LoginShell:      getAttr(entry, ldap.AttrLoginShell),
-		UnixHomeDir:     getAttr(entry, ldap.AttrUnixHomeDir),
-		UidNumber:       getAttr(entry, ldap.AttrUidNumber),
-		GidNumber:       getAttr(entry, ldap.AttrGidNumber),
-		Enabled:         enabled,
-		LockedOut:       lockedOut,
-		PasswordExpired: pwdExpired,
-		AccountExpires:  parseADTimestamp(getAttr(entry, ldap.AttrAccountExpires)),
-		PwdLastSet:      parseADTimestamp(getAttr(entry, ldap.AttrPwdLastSet)),
-		BadPwdCount:     badPwd,
-		LastLogon:       parseADTimestamp(getAttr(entry, ldap.AttrLastLogon)),
-		WhenCreated:     parseADTimestamp(getAttr(entry, ldap.AttrWhenCreated)),
-		WhenChanged:     parseADTimestamp(getAttr(entry, ldap.AttrWhenChanged)),
-		MemberOf:        getAttrs(entry, ldap.AttrMemberOf),
+		DN:                   entry.DN,
+		SamAccountName:       getAttr(entry, ldap.AttrSAM),
+		DisplayName:          getAttr(entry, ldap.AttrDisplayName),
+		GivenName:            getAttr(entry, ldap.AttrGivenName),
+		Surname:              getAttr(entry, ldap.AttrSurname),
+		Email:                getAttr(entry, ldap.AttrEmail),
+		UPN:                  getAttr(entry, ldap.AttrUPN),
+		Description:          getAttr(entry, ldap.AttrDescription),
+		Department:           getAttr(entry, ldap.AttrDepartment),
+		Title:                getAttr(entry, ldap.AttrTitle),
+		Company:              getAttr(entry, ldap.AttrCompany),
+		Manager:              getAttr(entry, ldap.AttrManager),
+		Office:               getAttr(entry, ldap.AttrPhysicalDelivery),
+		Street:               getAttr(entry, ldap.AttrStreetAddress),
+		City:                 getAttr(entry, ldap.AttrCity),
+		State:                getAttr(entry, ldap.AttrState),
+		PostalCode:           getAttr(entry, ldap.AttrPostalCode),
+		Country:              getAttr(entry, ldap.AttrCountry),
+		Phone:                getAttr(entry, ldap.AttrTelephone),
+		Mobile:               getAttr(entry, ldap.AttrMobile),
+		ProfilePath:          getAttr(entry, ldap.AttrProfilePath),
+		ScriptPath:           getAttr(entry, ldap.AttrScriptPath),
+		HomeDrive:            getAttr(entry, ldap.AttrHomeDrive),
+		HomeDirectory:        getAttr(entry, ldap.AttrHomeDirectory),
+		LoginShell:           getAttr(entry, ldap.AttrLoginShell),
+		UnixHomeDir:          getAttr(entry, ldap.AttrUnixHomeDir),
+		UidNumber:            getAttr(entry, ldap.AttrUidNumber),
+		GidNumber:            getAttr(entry, ldap.AttrGidNumber),
+		Enabled:              enabled,
+		LockedOut:            lockedOut,
+		PasswordExpired:      pwdExpired,
+		PasswordNeverExpires: pwdNeverExpires,
+		AccountExpires:       parseADTimestamp(getAttr(entry, ldap.AttrAccountExpires)),
+		PwdLastSet:           parseADTimestamp(getAttr(entry, ldap.AttrPwdLastSet)),
+		BadPwdCount:          badPwd,
+		LastLogon:            parseADTimestamp(getAttr(entry, ldap.AttrLastLogon)),
+		WhenCreated:          parseADTimestamp(getAttr(entry, ldap.AttrWhenCreated)),
+		WhenChanged:          parseADTimestamp(getAttr(entry, ldap.AttrWhenChanged)),
+		MemberOf:             getAttrs(entry, ldap.AttrMemberOf),
 	}
 }
 

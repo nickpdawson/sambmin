@@ -89,6 +89,7 @@ func Register(mux *http.ServeMux, cfg *config.Config, dir *directory.Client, sto
 	protected.Handle("POST /api/users/{dn}/enable", requireRole(auth.RoleOperator, handleEnableUser))
 	protected.Handle("POST /api/users/{dn}/disable", requireRole(auth.RoleOperator, handleDisableUser))
 	protected.Handle("POST /api/users/{dn}/unlock", requireRole(auth.RoleOperator, handleUnlockUser))
+	protected.Handle("POST /api/users/{dn}/account-control", requireRole(auth.RoleOperator, handleUserAccountControl))
 	protected.Handle("POST /api/users/{dn}/rename", requireRole(auth.RoleOperator, handleRenameUser))
 	protected.Handle("POST /api/users/{dn}/move", requireRole(auth.RoleOperator, handleMoveUser))
 

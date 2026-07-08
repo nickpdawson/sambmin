@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nickdawson/sambmin/internal/auth"
+	"github.com/nickdawson/sambmin/internal/ldap"
 	"github.com/nickdawson/sambmin/internal/validate"
 )
 
@@ -141,13 +142,13 @@ func requireSession(w http.ResponseWriter, r *http.Request) *auth.Session {
 // --- User Create ---
 
 type createUserRequest struct {
-	Username           string `json:"username"`
-	Password           string `json:"password"`
-	GivenName          string `json:"givenName"`
-	Surname            string `json:"surname"`
-	Mail               string `json:"mail"`
-	Department         string `json:"department"`
-	Title              string `json:"title"`
+	Username           string   `json:"username"`
+	Password           string   `json:"password"`
+	GivenName          string   `json:"givenName"`
+	Surname            string   `json:"surname"`
+	Mail               string   `json:"mail"`
+	Department         string   `json:"department"`
+	Title              string   `json:"title"`
 	OU                 string   `json:"ou"`
 	Groups             []string `json:"groups"`
 	MustChangePassword bool     `json:"mustChangePassword"`
@@ -355,10 +356,10 @@ type updateUserRequest struct {
 	HomeDrive     string `json:"homeDrive"`
 	HomeDirectory string `json:"homeDirectory"`
 	// Unix/POSIX
-	LoginShell    string `json:"loginShell"`
-	UnixHomeDir   string `json:"unixHomeDirectory"`
-	UidNumber     string `json:"uidNumber"`
-	GidNumber     string `json:"gidNumber"`
+	LoginShell  string `json:"loginShell"`
+	UnixHomeDir string `json:"unixHomeDirectory"`
+	UidNumber   string `json:"uidNumber"`
+	GidNumber   string `json:"gidNumber"`
 }
 
 func handleUpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -560,6 +561,116 @@ func handleResetPassword(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]any{"success": true, "username": username})
 }
 
+// --- Account Control (account expiry + password-never-expires) ---
+
+type accountControlRequest struct {
+	// AccountExpires: nil = leave unchanged. "never" (or empty) clears the
+	// expiry; otherwise an RFC3339 timestamp or a plain YYYY-MM-DD date to set
+	// the account expiration. Expiry is day-granular (samba-tool user setexpiry
+	// takes --days), so the stored time lands at roughly the same time-of-day.
+	AccountExpires *string `json:"accountExpires"`
+	// PasswordNeverExpires: nil = leave unchanged. Toggles the UAC
+	// DONT_EXPIRE_PASSWORD bit (0x10000) — the canonical service-account setting
+	// so the password doesn't age out under the domain max-password-age policy.
+	PasswordNeverExpires *bool `json:"passwordNeverExpires"`
+}
+
+// parseExpiryDate accepts an RFC3339 timestamp or a plain YYYY-MM-DD date.
+func parseExpiryDate(s string) (time.Time, error) {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	if t, err := time.Parse("2006-01-02", s); err == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("expected an RFC3339 timestamp or YYYY-MM-DD date")
+}
+
+// ceilDays rounds a duration up to whole days. Zero or negative durations
+// return 0 (i.e. "in the past / now").
+func ceilDays(d time.Duration) int {
+	if d <= 0 {
+		return 0
+	}
+	return int((d + 24*time.Hour - time.Nanosecond) / (24 * time.Hour))
+}
+
+func handleUserAccountControl(w http.ResponseWriter, r *http.Request) {
+	sess := requireSession(w, r)
+	if sess == nil {
+		return
+	}
+
+	dn := r.PathValue("dn")
+	username, err := samAccountNameFromDN(r.Context(), dn)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var req accountControlRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.AccountExpires == nil && req.PasswordNeverExpires == nil {
+		respondError(w, http.StatusBadRequest, "nothing to change")
+		return
+	}
+
+	var changed []string
+
+	// Account expiry via samba-tool user setexpiry (--noexpiry = never).
+	if req.AccountExpires != nil {
+		val := strings.TrimSpace(*req.AccountExpires)
+		var expiryArg string
+		if val == "" || strings.EqualFold(val, "never") {
+			expiryArg = "--noexpiry"
+		} else {
+			t, perr := parseExpiryDate(val)
+			if perr != nil {
+				respondError(w, http.StatusBadRequest, "invalid accountExpires: "+perr.Error())
+				return
+			}
+			days := ceilDays(time.Until(t))
+			if days < 1 {
+				respondError(w, http.StatusBadRequest, `accountExpires must be a future date, or "never"`)
+				return
+			}
+			expiryArg = fmt.Sprintf("--days=%d", days)
+		}
+		if _, err := runSambaTool(r.Context(), sess, "user", "setexpiry", username, expiryArg); err != nil {
+			slog.Error("set account expiry failed", "username", username, "actor", sess.Username, "error", err)
+			respondSafeError(w, http.StatusInternalServerError, "set account expiry failed", err)
+			return
+		}
+		changed = append(changed, "accountExpires")
+	}
+
+	// Password-never-expires: no samba-tool subcommand exists for the UAC bit,
+	// so toggle it via an LDAP read-modify-write of userAccountControl.
+	if req.PasswordNeverExpires != nil {
+		if dirClient == nil {
+			respondError(w, http.StatusServiceUnavailable, "directory not available")
+			return
+		}
+		password, perr := sessionStore.Password(sess)
+		if perr != nil {
+			respondError(w, http.StatusInternalServerError, "session credentials unavailable")
+			return
+		}
+		if err := dirClient.ModifyUACFlag(r.Context(), dn, ldap.UACDontExpirePassword, *req.PasswordNeverExpires, sess.DN, password); err != nil {
+			slog.Error("set password-never-expires failed", "dn", dn, "actor", sess.Username, "error", err)
+			respondSafeError(w, http.StatusInternalServerError, "set password-never-expires failed", err)
+			return
+		}
+		changed = append(changed, "passwordNeverExpires")
+	}
+
+	slog.Info("account control updated", "username", username, "actor", sess.Username, "changed", changed)
+	respondJSON(w, http.StatusOK, map[string]any{"success": true, "changed": changed})
+}
+
 // --- Enable / Disable / Unlock ---
 
 func handleEnableUser(w http.ResponseWriter, r *http.Request) {
@@ -669,10 +780,10 @@ func handleRenameUser(w http.ResponseWriter, r *http.Request) {
 
 	args := []string{"user", "rename", username, "--new-cn=" + req.NewName}
 	if req.NewSurname != "" {
-		args = append(args, "--surname=" + req.NewSurname)
+		args = append(args, "--surname="+req.NewSurname)
 	}
 	if req.NewGivenName != "" {
-		args = append(args, "--given-name=" + req.NewGivenName)
+		args = append(args, "--given-name="+req.NewGivenName)
 	}
 
 	if _, err := runSambaTool(r.Context(), sess, args...); err != nil {

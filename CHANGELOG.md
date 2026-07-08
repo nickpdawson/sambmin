@@ -2,6 +2,11 @@
 
 All notable changes to Sambmin will be documented in this file.
 
+## [0.1.0-beta.9] - 2026-07-07
+
+### Added
+- **Edit account expiration and "password never expires" from the user drawer** — the Account tab previously showed these read-only. New endpoint `POST /api/users/{dn}/account-control` (RoleOperator) accepts `accountExpires` (an RFC3339 timestamp / `YYYY-MM-DD` date, or `"never"`) and/or `passwordNeverExpires` (bool). Account expiry is set via `samba-tool user setexpiry` (`--days`/`--noexpiry`, day-granular). "Password never expires" toggles the `userAccountControl` `DONT_EXPIRE_PASSWORD` bit (0x10000) via an LDAP read-modify-write on a single bound connection — there is no `samba-tool` subcommand for that flag. The typical service-account case (password that never ages out under the domain max-password-age policy) is now a one-click toggle. The user model/read path now exposes `passwordNeverExpires`.
+
 ## [0.1.0-beta.8] - 2026-07-06
 
 ### Fixed

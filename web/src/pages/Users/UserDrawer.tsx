@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Drawer, Descriptions, Tag, Space, Button, Typography, Tooltip, Tabs,
-  notification, Modal, Select, Input,
+  notification, Modal, Select, Input, Switch, DatePicker,
 } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import {
   LockOutlined, StopOutlined, CheckCircleOutlined, KeyOutlined,
   CopyOutlined, EditOutlined, SaveOutlined,
@@ -47,6 +48,7 @@ interface User {
   enabled: boolean;
   lockedOut: boolean;
   passwordExpired: boolean;
+  passwordNeverExpires: boolean;
   accountExpires: string;
   pwdLastSet: string;
   badPwdCount: number;
@@ -165,6 +167,11 @@ export default function UserDrawer({ user, open, onClose, onRefresh }: UserDrawe
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [selectedGroupDn, setSelectedGroupDn] = useState<string | null>(null);
   const [addingGroup, setAddingGroup] = useState(false);
+  // Account expiry editing
+  const [editingExpiry, setEditingExpiry] = useState(false);
+  const [expiryDate, setExpiryDate] = useState<Dayjs | null>(null);
+  const [savingExpiry, setSavingExpiry] = useState(false);
+  const [savingNeverExpires, setSavingNeverExpires] = useState(false);
 
   // Load available groups when Groups tab is opened
   useEffect(() => {
@@ -187,6 +194,52 @@ export default function UserDrawer({ user, open, onClose, onRefresh }: UserDrawe
       Modal.error({ title: 'Update failed', content: msg });
     }
   }, [user, onRefresh]);
+
+  // Post an account-control change (account expiry and/or password-never-expires).
+  const postAccountControl = useCallback(async (
+    body: { accountExpires?: string; passwordNeverExpires?: boolean },
+  ) => {
+    if (!user) return;
+    const dn = encodeURIComponent(user.dn);
+    await api.post(`/users/${dn}/account-control`, body);
+  }, [user]);
+
+  const handleSaveExpiry = useCallback(async (mode: 'date' | 'never') => {
+    if (!user) return;
+    if (mode === 'date' && !expiryDate) {
+      Modal.error({ title: 'Pick a date', content: 'Choose an expiration date, or set the account to never expire.' });
+      return;
+    }
+    setSavingExpiry(true);
+    try {
+      await postAccountControl({
+        accountExpires: mode === 'never' ? 'never' : expiryDate!.toISOString(),
+      });
+      notification.success({ message: mode === 'never' ? 'Account set to never expire' : 'Account expiry updated', duration: 2 });
+      setEditingExpiry(false);
+      onRefresh?.();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to set account expiry';
+      Modal.error({ title: 'Set account expiry failed', content: msg });
+    } finally {
+      setSavingExpiry(false);
+    }
+  }, [user, expiryDate, postAccountControl, onRefresh]);
+
+  const handleToggleNeverExpires = useCallback(async (checked: boolean) => {
+    if (!user) return;
+    setSavingNeverExpires(true);
+    try {
+      await postAccountControl({ passwordNeverExpires: checked });
+      notification.success({ message: checked ? 'Password set to never expire' : 'Password now follows the domain policy', duration: 2 });
+      onRefresh?.();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update password expiry';
+      Modal.error({ title: 'Update failed', content: msg });
+    } finally {
+      setSavingNeverExpires(false);
+    }
+  }, [user, postAccountControl, onRefresh]);
 
   const handleAddGroup = useCallback(async () => {
     if (!user || !selectedGroupDn) return;
@@ -341,15 +394,65 @@ export default function UserDrawer({ user, open, onClose, onRefresh }: UserDrawe
                 ? <Tag color="warning">Must change at next login</Tag>
                 : <Text type="secondary">No</Text>}
             </Descriptions.Item>
+            <Descriptions.Item label="Password Never Expires">
+              <Space>
+                <Switch
+                  checked={user.passwordNeverExpires}
+                  loading={savingNeverExpires}
+                  onChange={handleToggleNeverExpires}
+                  size="small"
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {user.passwordNeverExpires
+                    ? 'Password does not age out (typical for service accounts)'
+                    : 'Password follows the domain max-age policy'}
+                </Text>
+              </Space>
+            </Descriptions.Item>
             <Descriptions.Item label="Bad Password Count">
               {user.badPwdCount > 0
                 ? <Tag color="warning">{user.badPwdCount}</Tag>
                 : <Text type="secondary">0</Text>}
             </Descriptions.Item>
             <Descriptions.Item label="Account Expires">
-              {formatTimestamp(user.accountExpires) === 'Never'
-                ? <Text type="secondary">Never</Text>
-                : formatTimestamp(user.accountExpires)}
+              {editingExpiry ? (
+                <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                  <DatePicker
+                    value={expiryDate}
+                    onChange={setExpiryDate}
+                    disabledDate={(d) => d && d.isBefore(dayjs().startOf('day'))}
+                    style={{ width: '100%' }}
+                    placeholder="Select expiration date"
+                  />
+                  <Space>
+                    <Button type="primary" size="small" loading={savingExpiry} onClick={() => handleSaveExpiry('date')}>
+                      Set expiry
+                    </Button>
+                    <Button size="small" loading={savingExpiry} onClick={() => handleSaveExpiry('never')}>
+                      Never expires
+                    </Button>
+                    <Button size="small" type="text" onClick={() => setEditingExpiry(false)}>
+                      Cancel
+                    </Button>
+                  </Space>
+                </Space>
+              ) : (
+                <Space>
+                  {formatTimestamp(user.accountExpires) === 'Never'
+                    ? <Text type="secondary">Never</Text>
+                    : formatTimestamp(user.accountExpires)}
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => {
+                      const cur = user.accountExpires ? dayjs(user.accountExpires) : null;
+                      setExpiryDate(cur && cur.year() > 1970 && cur.year() < 9999 ? cur : null);
+                      setEditingExpiry(true);
+                    }}
+                  />
+                </Space>
+              )}
             </Descriptions.Item>
             <Descriptions.Item label="Created">
               {formatTimestamp(user.whenCreated)}
