@@ -38,6 +38,20 @@ The in-memory implementation works well for single-server deployments. The trade
 **Can I run multiple Sambmin instances for HA?**
 Not currently. In-memory sessions mean you'd need sticky sessions or a shared session store. This is on the roadmap.
 
+## Delegation & Accounts
+
+**How do I give a service account permissions without making it a Domain Admin?**
+Use [Delegation of Control](features/delegation.md) (Policy & Security → Delegation). Pick the OU (or domain root), select the account, and grant a scoped capability — e.g. "Create and delete computer accounts" for a domain-join account, or "Read all objects and properties" for a read-only bind account. Adding the account to a privileged group is the blunt alternative; delegation grants exactly the rights it needs and nothing more.
+
+**What's the difference between "password never expires" and "account expires"?**
+"Password never expires" stops the *password* from aging out under the domain max-password-age policy — the normal setting for a service account. "Account expires" makes the whole *account* stop working after a date (AD disables it), useful for contractors. Both live on the user's Account tab. A service account usually wants password-never-expires **on** and account-expiry **never**.
+
+**My directory-sync / DirSync bind account can't read changes.**
+Directory-replication rights (`Replicate directory changes` / `… All`) only take effect on the **domain root**, not an OU. On the Delegation page, set the target to the domain root before granting them. Use "… All" only if the tool needs password hashes (e.g. Azure AD Connect password-hash sync) — it can read secrets, so treat that account as Tier-0.
+
+**A delegation I removed still seems to be there / removed cleanly?**
+A single delegation can be stored as several ACEs (e.g. "Full control" becomes two after AD canonicalizes Generic All). Sambmin's Remove deletes the whole group at once. If you edited ACLs outside Sambmin, use `samba-tool dsacl get --objectdn=<dn>` on a DC to see the raw descriptor.
+
 ## Known Limitations
 
 **Why does replication monitoring require Domain Admin login?**

@@ -86,6 +86,14 @@ For complete installation instructions, see:
 - [Linux Installation Guide](docs/installation/linux.md) (Ubuntu/Debian)
 - [macOS Development Setup](docs/installation/macos.md)
 
+## Documentation
+
+- [User Guide](docs/USER_GUIDE.md) — tour of every feature area, with deep-dive guides:
+  - [User Management](docs/features/user-management.md) — account lifecycle, password/account expiry
+  - [Delegation of Control](docs/features/delegation.md) — grant scoped AD rights to service/bind accounts, OU admins, help-desk
+  - [Password Policy](docs/features/password-policy.md) — domain policy, PSOs, password tester
+- [Configuration](docs/CONFIGURATION.md) · [Architecture](docs/ARCHITECTURE.md) · [Security](docs/SECURITY.md) · [FAQ](docs/FAQ.md)
+
 ## Architecture
 
 Sambmin uses a split read/write architecture: the Go backend reads AD data directly via LDAP for speed, while write operations are delegated to Python scripts that wrap `samba-tool` for compatibility with Samba's internal consistency checks. A two-tier authentication model uses a service account for read operations and the logged-in user's credentials (encrypted in-session with AES-256-GCM) for writes, ensuring all mutations are attributed to the correct user.
